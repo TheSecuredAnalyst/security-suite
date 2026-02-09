@@ -24,11 +24,10 @@ def sample_result():
     result = ScanResult(target=target, module="test")
     
     finding = Finding(
-        id="test-1",
         title="Test Finding",
         description="Test description",
         severity=Severity.HIGH,
-        module="test",
+        source="test",
     )
     result.findings.append(finding)
     

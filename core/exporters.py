@@ -51,19 +51,17 @@ class JSONExporter(BaseExporter):
         data = {
             "target": self.result.target.dict(),
             "module": self.result.module,
-            "status": self.result.status,
             "success": self.result.success,
             "started_at": self.result.started_at.isoformat() if self.result.started_at else None,
             "completed_at": self.result.completed_at.isoformat() if self.result.completed_at else None,
             "findings": [
                 {
-                    "id": f.id,
                     "title": f.title,
                     "description": f.description,
                     "severity": f.severity.value,
-                    "module": f.module,
+                    "source": f.source,
                     "data": f.data,
-                    "created_at": f.created_at.isoformat(),
+                    "timestamp": f.timestamp.isoformat(),
                 }
                 for f in self.result.findings
             ],
@@ -95,23 +93,19 @@ class CSVExporter(BaseExporter):
         """
         output = StringIO()
         
-        fieldnames = [
-            'Finding ID', 'Title', 'Severity', 'Module',
-            'Description', 'Data', 'Created At'
-        ]
+        fieldnames = ['Title', 'Severity', 'Source', 'Description', 'Data', 'Timestamp']
         
         writer = csv.DictWriter(output, fieldnames=fieldnames)
         writer.writeheader()
         
         for finding in self.result.findings:
             writer.writerow({
-                'Finding ID': finding.id,
                 'Title': finding.title,
                 'Severity': finding.severity.value,
-                'Module': finding.module,
+                'Source': finding.source,
                 'Description': finding.description,
                 'Data': json.dumps(finding.data),
-                'Created At': finding.created_at.isoformat(),
+                'Timestamp': finding.timestamp.isoformat(),
             })
         
         csv_str = output.getvalue()
@@ -156,13 +150,18 @@ class HTMLExporter(BaseExporter):
                 </span>
             </td>
             <td style="border: 1px solid #ddd; padding: 8px;"><strong>{finding.title}</strong></td>
-            <td style="border: 1px solid #ddd; padding: 8px;">{finding.module}</td>
+            <td style="border: 1px solid #ddd; padding: 8px;">{finding.source}</td>
             <td style="border: 1px solid #ddd; padding: 8px;">{finding.description}</td>
-        </tr>
-            """
+        </tr>"""
         
         if not findings_html:
             findings_html = "<tr><td colspan='4' style='text-align: center; padding: 20px;'>No findings detected</td></tr>"
+        
+        critical_count = sum(1 for f in self.result.findings if f.severity.value == 'critical')
+        high_count = sum(1 for f in self.result.findings if f.severity.value == 'high')
+        medium_count = sum(1 for f in self.result.findings if f.severity.value == 'medium')
+        low_count = sum(1 for f in self.result.findings if f.severity.value == 'low')
+        info_count = sum(1 for f in self.result.findings if f.severity.value == 'info')
         
         html = f"""<!DOCTYPE html>
 <html>
@@ -188,40 +187,6 @@ class HTMLExporter(BaseExporter):
             border-bottom: 3px solid #007bff;
             padding-bottom: 10px;
         }}
-        .report-info {{
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 20px;
-            margin: 20px 0;
-        }}
-        .info-box {{
-            background-color: #f9f9f9;
-            padding: 15px;
-            border-radius: 5px;
-            border-left: 4px solid #007bff;
-        }}
-        .info-box strong {{
-            display: block;
-            margin-bottom: 5px;
-        }}
-        table {{
-            width: 100%;
-            border-collapse: collapse;
-            margin-top: 20px;
-        }}
-        th {{
-            background-color: #007bff;
-            color: white;
-            padding: 12px;
-            text-align: left;
-        }}
-        td {{
-            padding: 12px;
-            border: 1px solid #ddd;
-        }}
-        tr:hover {{
-            background-color: #f5f5f5;
-        }}
         .summary {{
             display: grid;
             grid-template-columns: repeat(5, 1fr);
@@ -239,49 +204,35 @@ class HTMLExporter(BaseExporter):
         .medium {{ background-color: #ffaa00; color: #000; }}
         .low {{ background-color: #ffff00; color: #000; }}
         .info {{ background-color: #00aa00; }}
+        table {{
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }}
+        th {{
+            background-color: #007bff;
+            color: white;
+            padding: 12px;
+            text-align: left;
+        }}
+        td {{
+            padding: 12px;
+            border: 1px solid #ddd;
+        }}
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>🔒 Security Suite Scan Report</h1>
-        
-        <div class="report-info">
-            <div class="info-box">
-                <strong>Target:</strong>
-                {self.result.target.value}
-                <br><strong>Module:</strong>
-                {self.result.module}
-            </div>
-            <div class="info-box">
-                <strong>Started:</strong>
-                {self.result.started_at.strftime('%Y-%m-%d %H:%M:%S') if self.result.started_at else 'N/A'}
-                <br><strong>Completed:</strong>
-                {self.result.completed_at.strftime('%Y-%m-%d %H:%M:%S') if self.result.completed_at else 'N/A'}
-            </div>
-        </div>
+        <h1>Security Suite Scan Report</h1>
+        <p><strong>Target:</strong> {self.result.target.value} | <strong>Module:</strong> {self.result.module}</p>
         
         <h2>Summary</h2>
         <div class="summary">
-            <div class="summary-card critical">
-                <strong>{sum(1 for f in self.result.findings if f.severity.value == 'critical')}</strong><br>
-                Critical
-            </div>
-            <div class="summary-card high">
-                <strong>{sum(1 for f in self.result.findings if f.severity.value == 'high')}</strong><br>
-                High
-            </div>
-            <div class="summary-card medium">
-                <strong>{sum(1 for f in self.result.findings if f.severity.value == 'medium')}</strong><br>
-                Medium
-            </div>
-            <div class="summary-card low">
-                <strong>{sum(1 for f in self.result.findings if f.severity.value == 'low')}</strong><br>
-                Low
-            </div>
-            <div class="summary-card info">
-                <strong>{sum(1 for f in self.result.findings if f.severity.value == 'info')}</strong><br>
-                Info
-            </div>
+            <div class="summary-card critical"><strong>{critical_count}</strong><br>Critical</div>
+            <div class="summary-card high"><strong>{high_count}</strong><br>High</div>
+            <div class="summary-card medium"><strong>{medium_count}</strong><br>Medium</div>
+            <div class="summary-card low"><strong>{low_count}</strong><br>Low</div>
+            <div class="summary-card info"><strong>{info_count}</strong><br>Info</div>
         </div>
         
         <h2>Findings</h2>
@@ -289,15 +240,11 @@ class HTMLExporter(BaseExporter):
             <tr>
                 <th>Severity</th>
                 <th>Title</th>
-                <th>Module</th>
+                <th>Source</th>
                 <th>Description</th>
             </tr>
             {findings_html}
         </table>
-        
-        <p style="text-align: center; margin-top: 30px; color: #999; font-size: 12px;">
-            Generated by Security Suite on {datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S UTC')}
-        </p>
     </div>
 </body>
 </html>"""
@@ -347,19 +294,10 @@ class MarkdownExporter(BaseExporter):
             md += "✅ No findings detected\n"
         else:
             for finding in self.result.findings:
-                severity_emoji = {
-                    "critical": "🔴",
-                    "high": "🟠",
-                    "medium": "🟡",
-                    "low": "🔵",
-                    "info": "ℹ️",
-                }
-                emoji = severity_emoji.get(finding.severity.value, "•")
-                
-                md += f"""### {emoji} {finding.title}
-**Severity:** {finding.severity.value.upper()}  
-**Module:** {finding.module}  
-**Description:** {finding.description}  
+                md += f"""### {finding.title}
+- **Severity:** {finding.severity.value.upper()}
+- **Source:** {finding.source}
+- **Description:** {finding.description}
 
 """
         

@@ -129,13 +129,16 @@ class TestToolManager:
     
     def test_tool_cache(self):
         """Test tool finding is cached."""
+        # Use a tool that definitely doesn't exist to test caching
+        tool_name = "nonexistent_tool_definitely_not_in_path_xyz"
         ToolManager._tool_cache.clear()
         
         # First call should check
-        result1 = ToolManager.find_tool("python3")
+        result1 = ToolManager.find_tool(tool_name)
         
         # Second call should use cache
-        result2 = ToolManager.find_tool("python3")
+        result2 = ToolManager.find_tool(tool_name)
         
         # Results should match
         assert result1 == result2
+        assert result1 is None  # Tool shouldn't exist
