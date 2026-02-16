@@ -6,68 +6,147 @@
 
 A comprehensive open-source security tools suite for OSINT reconnaissance, web security testing, API security assessment, and compliance checking with AI-powered analysis.
 
-## Features
+```
+   ____            ____        _ __
+  / __/__ ___     / __/_ __(_) /____
+ _\ \/ -_) __/   _\ \/ // / / __/ -_)
+/___/\__/\__/   /___/\_,_/_/\__/\__/
 
-### OSINT Module
-- DNS enumeration and zone transfer detection
-- WHOIS lookup with registrar details
-- Subdomain discovery
-- Port scanning (nmap integration)
-- Technology detection (frameworks, CMS, servers)
-- HTTP header analysis
-- Email harvesting
-- VirusTotal integration
-- Shodan integration
+       =[ SecSuite v0.1.0 ]=
++ -- --=[ 11 OSINT modules | 6 Web scanners | 4 API security tools ]=--
++ -- --=[ AI-powered analysis with Ollama/Anthropic/OpenAI       ]=--
++ -- --=[ SIEM integration | Scheduled scans | Web dashboard      ]=--
+```
 
-### Web Scanner Module
-- Web crawling and link discovery
-- XSS (Cross-Site Scripting) detection
-- SQL injection testing
-- Directory bruteforce
-- SSL/TLS analysis (certificate, protocols, vulnerabilities)
-- Nuclei template scanning
+---
 
-### API Security Module
-- OpenAPI/Swagger specification parsing
-- Endpoint security testing
-- Authentication bypass testing
-- JWT vulnerability detection
-- Rate limiting checks
-- BOLA/IDOR detection
-- Parameter fuzzing
+## Highlights
 
-### SIEM Integration
-- Splunk HEC export
-- Elasticsearch bulk export
-- Syslog (UDP/TCP/TLS) with RFC5424/RFC3164
-- Webhook notifications (Slack, Discord, PagerDuty)
-- CEF and LEEF format support
+| Module | Capabilities | Tools |
+|--------|-------------|-------|
+| **OSINT** | DNS, WHOIS, subdomains, ports, tech detection, headers, emails | nmap, Shodan, VirusTotal |
+| **Web Scanner** | XSS, SQLi, directory bruteforce, SSL/TLS analysis, crawling | Nuclei |
+| **API Security** | OpenAPI parsing, auth bypass, JWT testing, BOLA/IDOR, fuzzing | - |
+| **AI Analysis** | Finding correlation, remediation, executive summaries | Ollama, Anthropic, OpenAI |
+| **SIEM** | Splunk, Elasticsearch, Syslog, webhooks (Slack/Discord/PagerDuty) | CEF/LEEF formats |
+| **Scheduler** | Cron-based recurring scans with persistent history | - |
+| **Dashboard** | Real-time monitoring, findings visualization, scan history | FastAPI |
+| **Compliance** | OWASP Top 10, CIS Controls assessment | - |
+| **Exploit** | Exploit search and CVE lookup | SearchSploit, Exploit-DB |
+| **Phishing** | Security awareness campaigns and simulation | - |
 
-### Scheduled Scans
-- Cron-based recurring assessments
-- Multiple frequency options (hourly, daily, weekly, monthly)
-- Persistent job history
-- Automatic result storage
+---
 
-### Web Dashboard
-- Real-time scan monitoring
-- Findings visualization by severity
-- Scan history and statistics
-- Schedule management
-- One-click target scanning
+## Demo
 
-### AI Analysis
-- Multi-provider support (Anthropic, OpenAI, Ollama)
-- Local LLM support (LLaMA, Qwen, Mistral)
-- Finding correlation and prioritization
-- Remediation recommendations
-- Executive summary generation
+### DNS Enumeration
+```
+$ secsuite osint dns example.com
 
-### Additional Modules
-- Exploit search (SearchSploit/Exploit-DB)
-- Phishing simulation for security awareness
-- OWASP Top 10 compliance checking
-- CIS Controls assessment
+DNS Enumeration: example.com
+╭──────────────────────── [INFO] IPv4 Addresses Found ─────────────────────────╮
+│ Domain resolves to 2 IPv4 address(es)                                        │
+╰──────────────────────────────────────────────────────────────────────────────╯
+  addresses: ['104.18.27.120', '104.18.26.120']
+
+╭───────────────────────── [INFO] Mail Servers Found ──────────────────────────╮
+│ Found 1 mail server(s)                                                       │
+╰──────────────────────────────────────────────────────────────────────────────╯
+  servers: ['0 .']
+
+╭────────────────────────── [INFO] SPF Record Found ───────────────────────────╮
+│ Domain has SPF email authentication configured                               │
+╰──────────────────────────────────────────────────────────────────────────────╯
+  spf: ['"v=spf1 -all"']
+
+╭─────────────────────── [INFO] Nameservers Identified ────────────────────────╮
+│ Found 2 nameserver(s)                                                        │
+╰──────────────────────────────────────────────────────────────────────────────╯
+  nameservers: ['hera.ns.cloudflare.com.', 'elliott.ns.cloudflare.com.']
+
+Completed in 0.68s
+```
+
+### SSL/TLS Analysis
+```
+$ secsuite scan ssl example.com
+
+SSL/TLS Analysis: example.com
+╭─────────────────────── [INFO] TLS Versions Supported ────────────────────────╮
+│ Supported: SSLv3, TLSv1.2, TLSv1.3                                          │
+╰──────────────────────────────────────────────────────────────────────────────╯
+  SSLv3: True   TLSv1.0: False   TLSv1.1: False   TLSv1.2: True   TLSv1.3: True
+
+╭──────────────────────────── [HIGH] SSLv3 Enabled ────────────────────────────╮
+│ SSLv3 is enabled - vulnerable to POODLE attack                               │
+╰──────────────────────────────────────────────────────────────────────────────╯
+
+Completed in 0.78s
+```
+
+### Configuration
+```
+$ secsuite config
+
+                  Configuration
+┏━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+┃ Setting            ┃ Value                    ┃
+┡━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━┩
+│ Data Directory     │ ~/.secsuite              │
+│ Debug Mode         │ False                    │
+│ Request Timeout    │ 30s                      │
+│ Max Concurrent     │ 10                       │
+│ Shodan API Key     │ ✗ Not set                │
+│ VirusTotal API Key │ ✗ Not set                │
+│ Anthropic API Key  │ ✗ Not set                │
+│ OpenAI API Key     │ ✗ Not set                │
+└────────────────────┴──────────────────────────┘
+```
+
+---
+
+## Architecture
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                        User Interface                           │
+├──────────────────────────┬──────────────────────────────────────┤
+│   CLI (Typer)            │  REST API (FastAPI)                  │
+│   secsuite <command>     │  /api/v1/scans, /api/v1/results     │
+└──────────────────────────┴──────────────────────────────────────┘
+                                │
+                                ▼
+┌─────────────────────────────────────────────────────────────────┐
+│                    Core Infrastructure                           │
+│  Target Model ─ Config ─ Logging ─ Caching ─ Error Handling    │
+│  HTTP Client ─ Exporters (JSON/CSV/HTML/Markdown)              │
+└─────────────────────────────────────────────────────────────────┘
+                                │
+                                ▼
+┌─────────────────────────────────────────────────────────────────┐
+│                    Scanning Modules                              │
+│                                                                 │
+│  ┌─────────┐ ┌───────────┐ ┌───────────┐ ┌──────────────────┐ │
+│  │  OSINT  │ │Web Scanner│ │API Security│ │   AI Analysis   │ │
+│  │11 tools │ │ 6 tools   │ │  4 tools   │ │ 3 providers     │ │
+│  └─────────┘ └───────────┘ └───────────┘ └──────────────────┘ │
+│  ┌─────────┐ ┌───────────┐ ┌───────────┐ ┌──────────────────┐ │
+│  │  SIEM   │ │ Scheduler │ │Compliance │ │Exploit / Phishing│ │
+│  │ 4 backends│ │ cron-based│ │OWASP/CIS │ │ search / sim    │ │
+│  └─────────┘ └───────────┘ └───────────┘ └──────────────────┘ │
+└─────────────────────────────────────────────────────────────────┘
+                                │
+                                ▼
+┌─────────────────────────────────────────────────────────────────┐
+│                    Output & Integration                          │
+│  JSON/CSV/HTML Reports ─ SIEM Export ─ Webhook Notifications   │
+│  Web Dashboard ─ Scheduled Automation                           │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+> For detailed architecture documentation, see [ARCHITECTURE.md](ARCHITECTURE.md).
+
+---
 
 ## Installation
 
@@ -94,203 +173,112 @@ pip install -e ".[dashboard]" # Web dashboard (FastAPI, uvicorn)
 
 ## Configuration
 
-Create a `.env` file in the project root (copy from `.env.example`):
+Copy `.env.example` to `.env` and add your API keys:
 
-```env
-# Core Settings
-SECSUITE_DEBUG=false
-SECSUITE_DATA_DIR=~/.secsuite
-
-# API Keys (optional - enables enhanced features)
-SECSUITE_SHODAN_API_KEY=your_shodan_key
-SECSUITE_VIRUSTOTAL_API_KEY=your_virustotal_key
-SECSUITE_HUNTER_API_KEY=your_hunter_key
-
-# AI Providers (choose one or more)
-SECSUITE_ANTHROPIC_API_KEY=your_anthropic_key
-SECSUITE_OPENAI_API_KEY=your_openai_key
-SECSUITE_OLLAMA_BASE_URL=http://localhost:11434
-
-# SIEM Integration (optional)
-SECSUITE_SPLUNK_URL=https://splunk.example.com:8088
-SECSUITE_SPLUNK_TOKEN=your_hec_token
-SECSUITE_ELASTICSEARCH_URL=http://localhost:9200
+```bash
+cp .env.example .env
 ```
 
-## CLI Usage
+All settings use the `SECSUITE_` prefix. API keys are optional — core features work without them.
+
+| Variable | Service | Required |
+|----------|---------|----------|
+| `SECSUITE_SHODAN_API_KEY` | Shodan host intelligence | No |
+| `SECSUITE_VIRUSTOTAL_API_KEY` | VirusTotal malware analysis | No |
+| `SECSUITE_HUNTER_API_KEY` | Hunter.io email discovery | No |
+| `SECSUITE_ANTHROPIC_API_KEY` | Claude AI analysis | No |
+| `SECSUITE_OPENAI_API_KEY` | GPT AI analysis | No |
+
+> For local AI analysis with no API keys, use [Ollama](#local-llm-setup-ollama).
+
+---
+
+## Usage
 
 ### OSINT Reconnaissance
 
 ```bash
-# DNS enumeration
-secsuite osint dns example.com
-
-# WHOIS lookup
-secsuite osint whois example.com
-
-# Subdomain discovery
-secsuite osint subdomains example.com
-
-# HTTP header analysis
-secsuite osint headers https://example.com
-
-# Port scanning (requires nmap)
-secsuite osint ports 192.168.1.1
-
-# Technology detection
-secsuite osint tech https://example.com
-
-# Email harvesting
-secsuite osint emails example.com
-
-# VirusTotal lookup (requires API key)
-secsuite osint vt example.com
-
-# Shodan lookup (requires API key)
-secsuite osint shodan 8.8.8.8
-
-# Full OSINT scan (all modules)
-secsuite osint full example.com
+secsuite osint dns example.com          # DNS enumeration
+secsuite osint whois example.com        # WHOIS lookup
+secsuite osint subdomains example.com   # Subdomain discovery
+secsuite osint headers https://example.com  # HTTP header analysis
+secsuite osint ports 192.168.1.1        # Port scanning (requires nmap)
+secsuite osint tech https://example.com # Technology detection
+secsuite osint emails example.com       # Email harvesting
+secsuite osint vt example.com           # VirusTotal lookup
+secsuite osint shodan 8.8.8.8           # Shodan lookup
+secsuite osint full example.com         # Full OSINT scan (all modules)
 ```
 
 ### Web Security Scanning
 
 ```bash
-# Web crawling
-secsuite scan crawl https://example.com
-
-# XSS detection
-secsuite scan xss "https://example.com/search?q=test"
-
-# SQL injection testing
-secsuite scan sqli "https://example.com/product?id=1"
-
-# Directory bruteforce
-secsuite scan dirs https://example.com
-
-# SSL/TLS analysis
-secsuite scan ssl example.com
-
-# Nuclei scanning (requires nuclei)
-secsuite scan nuclei https://example.com
+secsuite scan crawl https://example.com                    # Web crawling
+secsuite scan xss "https://example.com/search?q=test"      # XSS detection
+secsuite scan sqli "https://example.com/product?id=1"      # SQL injection
+secsuite scan dirs https://example.com                     # Directory bruteforce
+secsuite scan ssl example.com                              # SSL/TLS analysis
+secsuite scan nuclei https://example.com                   # Nuclei scanning
 ```
 
 ### API Security Testing
 
 ```bash
-# Scan API from OpenAPI spec
-secsuite api scan https://api.example.com/openapi.json
-
-# Scan with authentication
+secsuite api scan https://api.example.com/openapi.json     # Scan from OpenAPI spec
 secsuite api scan spec.yaml --auth-header "Authorization: Bearer token"
-
-# Fuzz API endpoints
-secsuite api fuzz https://api.example.com/openapi.json
-
-# Test authentication mechanisms
+secsuite api fuzz https://api.example.com/openapi.json     # Fuzz endpoints
 secsuite api auth-test https://api.example.com --auth-header "Authorization: Bearer token"
 ```
 
 ### AI-Powered Analysis
 
 ```bash
-# Analyze findings with AI (uses configured provider)
-secsuite ai analyze results.json
-
-# Use specific provider
-secsuite ai analyze results.json --provider anthropic
-secsuite ai analyze results.json --provider openai
-secsuite ai analyze results.json --provider ollama --model llama3
-
-# Generate remediation report
-secsuite ai remediate results.json --output remediation.md
+secsuite ai analyze results.json                           # Analyze with default provider
+secsuite ai analyze results.json --provider anthropic      # Use Claude
+secsuite ai analyze results.json --provider ollama --model llama3  # Use local LLM
+secsuite ai remediate results.json --output remediation.md # Remediation report
 ```
 
 ### SIEM Integration
 
 ```bash
-# Test SIEM connection
-secsuite siem test splunk
-secsuite siem test elasticsearch
-secsuite siem test syslog --host 192.168.1.100 --port 514
-
-# Export findings to SIEM
-secsuite siem export results.json --backend splunk
+secsuite siem test splunk                                  # Test connection
+secsuite siem export results.json --backend splunk         # Export to Splunk
 secsuite siem export results.json --backend elasticsearch --index security-findings
 ```
 
 ### Scheduled Scans
 
 ```bash
-# Create a scheduled scan
 secsuite schedule create "Daily Web Scan" example.com --frequency daily --modules dns,headers,ssl
-
-# List schedules
-secsuite schedule list
-
-# Run a schedule immediately
-secsuite schedule run <schedule-id>
-
-# Delete a schedule
-secsuite schedule delete <schedule-id>
-
-# Start scheduler daemon
-secsuite schedule start
+secsuite schedule list                                     # List schedules
+secsuite schedule run <schedule-id>                        # Run immediately
+secsuite schedule start                                    # Start scheduler daemon
 ```
 
-### Web Dashboard
+### Dashboard & Reports
 
 ```bash
-# Start the dashboard
-secsuite dashboard --port 8080
-
-# Access at http://localhost:8080
-```
-
-### Exploit Search
-
-```bash
-# Search for exploits
-secsuite exploit search "apache 2.4"
-secsuite exploit search "CVE-2021-44228"
-```
-
-### Phishing Simulation (Authorized Testing Only)
-
-```bash
-# List email templates
-secsuite phish templates
-
-# Start phishing server
-secsuite phish server --port 8080
-```
-
-## Output Formats
-
-```bash
-# JSON output
-secsuite osint dns example.com --output json
-
-# Save to file
-secsuite osint full example.com --output-file report.json
-
-# Generate HTML report
+secsuite dashboard --port 8080                             # Start web dashboard
 secsuite report generate results.json --format html --output report.html
+secsuite osint dns example.com --output json               # JSON output
+secsuite osint full example.com --output-file report.json  # Save to file
 ```
 
-## External Dependencies
+### Exploit Search & Phishing Simulation
 
-Some features require external tools:
+```bash
+secsuite exploit search "apache 2.4"                       # Search exploits
+secsuite exploit search "CVE-2021-44228"                   # Search by CVE
+secsuite phish templates                                   # List email templates
+secsuite phish server --port 8080                          # Start phishing server
+```
 
-| Tool | Feature | Installation |
-|------|---------|--------------|
-| nmap | Port scanning | `apt install nmap` |
-| nuclei | Vulnerability scanning | [nuclei releases](https://github.com/projectdiscovery/nuclei) |
-| searchsploit | Exploit search | `apt install exploitdb` |
+---
 
 ## Local LLM Setup (Ollama)
 
-For AI analysis without cloud APIs:
+Run AI analysis locally with no cloud API keys:
 
 ```bash
 # Install Ollama
@@ -305,50 +293,67 @@ ollama pull mistral
 secsuite ai analyze results.json --provider ollama --model llama3
 ```
 
+## External Dependencies
+
+Some features require external tools:
+
+| Tool | Feature | Installation |
+|------|---------|--------------|
+| nmap | Port scanning | `apt install nmap` |
+| nuclei | Vulnerability scanning | [nuclei releases](https://github.com/projectdiscovery/nuclei) |
+| searchsploit | Exploit search | `apt install exploitdb` |
+
+---
+
 ## Project Structure
 
 ```
 security-suite/
 ├── cli/                 # CLI commands (Typer)
-├── core/                # Shared models, config, logging
+├── core/                # Shared models, config, logging, caching
+├── api/                 # REST API (FastAPI)
+│   └── routers/         # API route handlers
 ├── modules/
-│   ├── osint/          # OSINT tools
-│   ├── webscanner/     # Web security scanners
-│   ├── apisec/         # API security testing
-│   ├── exploit/        # Exploit search
-│   ├── phishing/       # Phishing simulation
-│   ├── compliance/     # Compliance checking
-│   ├── ai/             # AI analysis
-│   ├── siem/           # SIEM integration
-│   └── scheduler/      # Scheduled scans
-├── dashboard/          # Web UI (FastAPI)
-├── tests/              # Test suite
-├── .env.example        # Environment template
-└── pyproject.toml      # Package configuration
+│   ├── osint/           # OSINT tools (11 modules)
+│   ├── webscanner/      # Web security scanners (6 modules)
+│   ├── apisec/          # API security testing (4 modules)
+│   ├── ai/              # AI analysis (3 providers)
+│   ├── siem/            # SIEM integration (4 backends)
+│   ├── scheduler/       # Scheduled scans
+│   ├── compliance/      # OWASP/CIS compliance
+│   ├── exploit/         # Exploit search
+│   └── phishing/        # Phishing simulation
+├── dashboard/           # Web UI (FastAPI)
+├── tests/               # Test suite
+├── .env.example         # Environment template
+├── pyproject.toml       # Package configuration
+├── ARCHITECTURE.md      # System architecture docs
+├── USAGE.md             # Detailed usage examples
+└── QUICK_START.md       # Getting started guide
 ```
 
 ## Development
 
 ```bash
-# Install dev dependencies
-pip install -e ".[dev]"
-
-# Run tests
-pytest
-
-# Run with coverage
-pytest --cov=core --cov=modules
-
-# Lint code
-ruff check .
-
-# Type checking
-mypy core modules
+pip install -e ".[dev]"          # Install dev dependencies
+pytest                           # Run tests
+pytest --cov=core --cov=modules  # Run with coverage
+ruff check .                     # Lint code
+mypy core modules                # Type checking
 ```
 
-## License
+---
 
-AGPL-3.0 - See LICENSE file for details.
+## Documentation
+
+| Document | Description |
+|----------|-------------|
+| [ARCHITECTURE.md](ARCHITECTURE.md) | System design, data flow, module architecture |
+| [USAGE.md](USAGE.md) | Detailed CLI usage with examples |
+| [QUICK_START.md](QUICK_START.md) | Getting started guide with demos |
+| [IMPLEMENTATION_SUMMARY.md](IMPLEMENTATION_SUMMARY.md) | Implementation details and decisions |
+
+---
 
 ## Disclaimer
 
@@ -367,7 +372,6 @@ This tool is intended for **authorized security testing** and **educational purp
 4. Run tests and linting
 5. Submit a pull request
 
-## Support
+## License
 
-- Issues: GitHub Issues
-- Documentation: See USAGE.md for detailed examples
+AGPL-3.0 - See [LICENSE](LICENSE) file for details.
