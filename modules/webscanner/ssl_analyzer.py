@@ -76,12 +76,21 @@ class SSLAnalyzer(WebScannerModule):
 
             if tls_versions:
                 supported = [v for v, s in tls_versions.items() if s]
-                result.add_finding(
-                    title="TLS Versions Supported",
-                    description=f"Supported: {', '.join(supported)}",
-                    severity=Severity.INFO,
-                    data=tls_versions,
-                )
+
+                if not supported:
+                    result.add_finding(
+                        title="No TLS/SSL Configured",
+                        description=f"No TLS/SSL listener detected on {host}:{port} - traffic is unencrypted",
+                        severity=Severity.HIGH,
+                        data=tls_versions,
+                    )
+                else:
+                    result.add_finding(
+                        title="TLS Versions Supported",
+                        description=f"Supported: {', '.join(supported)}",
+                        severity=Severity.INFO,
+                        data=tls_versions,
+                    )
 
                 # Flag old TLS versions
                 if tls_versions.get("TLSv1.0") or tls_versions.get("TLSv1.1"):

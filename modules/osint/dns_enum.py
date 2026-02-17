@@ -1,10 +1,12 @@
 """DNS enumeration module."""
 
 import asyncio
+import ipaddress
 from typing import Optional
 
 import dns.resolver
 import dns.asyncresolver
+import dns.reversename
 
 from core.models import Target, ScanResult, Severity
 from modules.osint.base import OSINTModule
@@ -22,8 +24,12 @@ class DNSEnumerator(OSINTModule):
         """Enumerate DNS records for the target domain."""
         result = self.create_result(target)
 
+        # Handle IP targets with reverse DNS lookup
+        if target.target_type == "ip":
+            return await self._reverse_lookup(target, result)
+
         if target.target_type not in ("domain", "url"):
-            result.errors.append(f"Invalid target type: {target.target_type}. Expected domain.")
+            result.errors.append(f"Invalid target type: {target.target_type}. Expected domain or IP.")
             result.success = False
             result.complete()
             return result
@@ -102,6 +108,47 @@ class DNSEnumerator(OSINTModule):
                     severity=Severity.INFO,
                     data={"nameservers": records_found["NS"]},
                 )
+
+        result.complete()
+        return result
+
+    async def _reverse_lookup(self, target: Target, result: ScanResult) -> ScanResult:
+        """Perform reverse DNS (PTR) lookup for an IP address."""
+        ip = target.value
+        self.logger.info(f"Performing reverse DNS lookup for {ip}")
+
+        resolver = dns.asyncresolver.Resolver()
+        resolver.timeout = 5.0
+        resolver.lifetime = 10.0
+
+        try:
+            rev_name = dns.reversename.from_address(ip)
+            answers = await resolver.resolve(rev_name, "PTR")
+            hostnames = [str(rdata).rstrip(".") for rdata in answers]
+
+            result.raw_data["reverse_dns"] = {"ip": ip, "hostnames": hostnames}
+            result.add_finding(
+                title="Reverse DNS (PTR) Records",
+                description=f"IP {ip} resolves to {len(hostnames)} hostname(s)",
+                severity=Severity.INFO,
+                data={"ip": ip, "hostnames": hostnames},
+            )
+        except dns.resolver.NXDOMAIN:
+            result.raw_data["reverse_dns"] = {"ip": ip, "hostnames": []}
+            result.add_finding(
+                title="No Reverse DNS Record",
+                description=f"No PTR record found for {ip}",
+                severity=Severity.INFO,
+                data={"ip": ip},
+            )
+        except Exception as e:
+            result.raw_data["reverse_dns"] = {"ip": ip, "error": str(e)}
+            result.add_finding(
+                title="Reverse DNS Lookup",
+                description=f"PTR lookup for {ip} failed: {e}",
+                severity=Severity.INFO,
+                data={"ip": ip, "error": str(e)},
+            )
 
         result.complete()
         return result

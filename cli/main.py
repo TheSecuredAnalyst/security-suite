@@ -487,6 +487,12 @@ def exploit_search(
     console.print(f"[bold]Exploit Search:[/bold] {query}")
 
     searcher = SearchSploit()
+
+    if not searcher.searchsploit_available:
+        console.print("[bold red]Error:[/bold red] searchsploit is not installed.")
+        console.print("[dim]Install it with: apt install exploitdb[/dim]")
+        raise typer.Exit(1)
+
     results = run_async(searcher.search(query))
 
     if results:
