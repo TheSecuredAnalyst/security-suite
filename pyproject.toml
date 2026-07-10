@@ -47,6 +47,8 @@ dev = [
     "pytest-cov>=4.1.0",
     "ruff>=0.3.0",
     "mypy>=1.8.0",
+    "bandit[toml]>=1.7.0",
+    "pip-audit>=2.7.0",
 ]
 ai = [
     "openai>=1.12.0",
@@ -92,6 +94,12 @@ ignore = [
 
 [tool.ruff.format]
 docstring-code-format = true
+
+[tool.bandit]
+# Security Suite legitimately shells out and builds attack payloads, so scan for
+# real defects (injection, weak crypto, unsafe deserialization) and exclude the
+# test tree and virtualenv.
+exclude_dirs = ["tests", "venv", ".venv", "htmlcov"]
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"

@@ -1,0 +1,51 @@
+name: Security
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  schedule:
+    # Weekly, so newly-disclosed CVEs in pinned deps surface even without a push.
+    - cron: "0 6 * * 1"
+
+permissions:
+  contents: read
+
+jobs:
+  dependency-audit:
+    name: Dependency vulnerability audit (pip-audit)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install project
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[all,dev]"
+          pip install pip-audit
+      - name: Audit installed dependencies
+        # Non-blocking: transitive advisories are often outside our control, but
+        # they must be visible in every run so we can triage them.
+        run: pip-audit --strict --progress-spinner off || true
+
+  static-analysis:
+    name: Static security analysis (bandit)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install bandit
+        run: |
+          python -m pip install --upgrade pip
+          pip install "bandit[toml]"
+      - name: Run bandit (gate on high severity / high confidence)
+        # High/high is blocking. Medium/low findings are surfaced for triage but
+        # do not fail the build yet.
+        run: |
+          bandit -c pyproject.toml -r core modules cli api dashboard -lll -iii
+          bandit -c pyproject.toml -r core modules cli api dashboard -ll -ii || true
