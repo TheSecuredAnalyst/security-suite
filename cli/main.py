@@ -85,7 +85,7 @@ def print_banner():
     # Module stats
     stats = Text()
     stats.append("       =[ ", style="white")
-    stats.append("SecSuite v0.1.0", style="bold cyan")
+    stats.append("SecSuite v0.2.0", style="bold cyan")
     stats.append(" - ", style="white")
     stats.append("by ", style="white")
     stats.append("TheSecuredAnalyst", style="bold red")

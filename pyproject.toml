@@ -1,6 +1,6 @@
 [project]
 name = "security-suite"
-version = "0.1.0"
+version = "0.2.0"
 description = "Open-source security tools suite for OSINT, web testing, phishing simulation, and compliance"
 readme = "README.md"
 requires-python = ">=3.10"

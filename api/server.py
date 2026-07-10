@@ -62,7 +62,7 @@ def create_app() -> FastAPI:
             "Set the `SECSUITE_API_KEY` environment variable to require an `X-API-Key` header "
             "on all endpoints (except `/health` and `/docs`)."
         ),
-        version="0.1.0",
+        version="0.2.0",
         docs_url=None,   # we serve custom docs below
         redoc_url=None,
     )

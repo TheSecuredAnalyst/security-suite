@@ -34,7 +34,7 @@ class Settings(BaseSettings):
     # Network settings
     request_timeout: int = 30
     max_concurrent_requests: int = 10
-    user_agent: str = "SecuritySuite/0.1.0 (https://github.com/security-suite)"
+    user_agent: str = "SecuritySuite/0.2.0 (https://github.com/security-suite)"
 
     # Rate limiting
     requests_per_second: float = 5.0
