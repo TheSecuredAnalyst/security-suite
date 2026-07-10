@@ -14,6 +14,6 @@ async def health_check() -> HealthResponse:
     """Health check endpoint."""
     return HealthResponse(
         status="healthy",
-        version="0.1.0",
+        version="0.2.0",
         timestamp=datetime.now(timezone.utc),
     )

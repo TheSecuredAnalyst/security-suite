@@ -1,6 +1,8 @@
 # Security Suite
 
-[![CI](https://github.com/53cur3dL34rn/security-suite/actions/workflows/ci.yml/badge.svg)](https://github.com/53cur3dL34rn/security-suite/actions/workflows/ci.yml)
+[![CI](https://github.com/TheSecuredAnalyst/security-suite/actions/workflows/ci.yml/badge.svg)](https://github.com/TheSecuredAnalyst/security-suite/actions/workflows/ci.yml)
+[![Security](https://github.com/TheSecuredAnalyst/security-suite/actions/workflows/security.yml/badge.svg)](https://github.com/TheSecuredAnalyst/security-suite/actions/workflows/security.yml)
+[![CodeQL](https://github.com/TheSecuredAnalyst/security-suite/actions/workflows/codeql.yml/badge.svg)](https://github.com/TheSecuredAnalyst/security-suite/actions/workflows/codeql.yml)
 [![Python 3.10+](https://img.shields.io/badge/python-3.10%2B-blue.svg)](https://www.python.org/downloads/)
 [![License: AGPL-3.0](https://img.shields.io/badge/License-AGPL%20v3-blue.svg)](https://www.gnu.org/licenses/agpl-3.0)
 
@@ -12,7 +14,7 @@ A comprehensive open-source security tools suite for OSINT reconnaissance, web s
  _\ \/ -_) __/   _\ \/ // / / __/ -_)
 /___/\__/\__/   /___/\_,_/_/\__/\__/
 
-       =[ SecSuite v0.1.0 ]=
+       =[ SecSuite v0.2.0 ]=
 + -- --=[ 11 OSINT modules | 6 Web scanners | 4 API security tools ]=--
 + -- --=[ AI-powered analysis with Ollama/Anthropic/OpenAI         ]=--
 + -- --=[ SIEM integration | Scheduled scans | REST API            ]=--
@@ -509,7 +511,25 @@ pytest                            # Run all tests
 pytest --cov=core --cov=modules   # With coverage
 ruff check .                      # Lint
 mypy core modules                 # Type check
+bandit -c pyproject.toml -r core modules cli api dashboard   # Static security scan
+pip-audit                         # Dependency vulnerability audit
 ```
+
+---
+
+## Security
+
+Security Suite executes actions against remote systems, so the project is
+scanned and gated on every push:
+
+- **Guardrails** (`core/guardrails.py`) gate every exploit and AI-generated
+  remediation behind an authorized engagement session, Rules-of-Engagement
+  scope, and a destructive-command safety analyzer — deny-by-default.
+- CI runs `bandit` (SAST) and `pip-audit` (dependency CVEs); CodeQL and
+  Dependabot run on a schedule.
+
+Found a vulnerability? Please report it privately — see
+[SECURITY.md](SECURITY.md). Do not open a public issue.
 
 ---
 
@@ -521,6 +541,8 @@ mypy core modules                 # Type check
 | [USAGE.md](USAGE.md) | Full CLI reference with examples |
 | [TROUBLESHOOTING.md](TROUBLESHOOTING.md) | Fixes for common problems, including Windows-specific issues |
 | [ARCHITECTURE.md](ARCHITECTURE.md) | System design and data flow |
+| [CHANGELOG.md](CHANGELOG.md) | Release history and notable changes |
+| [SECURITY.md](SECURITY.md) | Vulnerability disclosure policy |
 
 ---
 
