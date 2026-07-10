@@ -10,6 +10,7 @@ from rich.table import Table
 from rich.text import Text
 
 from core.config import get_settings
+from core.guardrails import guardrails
 from core.logger import setup_logging
 from core.models import Target
 from core.wordlists import seclists_status
@@ -1001,10 +1002,23 @@ def ai_remediate(
                 for cmd in fix_cmds:
                     if cmd.startswith("#"):
                         continue
+                    # Defense-in-depth: AI-generated commands pass through the
+                    # guardrails safety analyzer before they can touch a shell.
+                    verdict = guardrails.validate_script(cmd)
+                    if not verdict.safe:
+                        console.print(f"  [dim]$ {cmd}[/dim]")
+                        console.print(
+                            "  [red]Blocked by safety guardrails:[/red] "
+                            + "; ".join(verdict.violations)
+                        )
+                        continue
                     console.print(f"  [dim]$ {cmd}[/dim]")
+                    for warning in verdict.warnings:
+                        console.print(f"  [yellow]⚠ {warning}[/yellow]")
                     if not dry_run:
                         import subprocess as _sp
-                        result = _sp.run(cmd, shell=True, text=True, capture_output=True)
+                        # Guardrail-validated above; interactive apply of a shell remediation step.
+                        result = _sp.run(cmd, shell=True, text=True, capture_output=True)  # nosec B602
                         if result.stdout:
                             console.print(f"  {result.stdout.strip()}")
                         if result.returncode != 0:
@@ -1025,9 +1039,17 @@ def ai_remediate(
                 new_cmd = typer.prompt("  Enter command", default="")
                 if new_cmd:
                     console.print(f"  [dim]$ {new_cmd}[/dim]")
+                    verdict = guardrails.validate_script(new_cmd)
+                    if not verdict.safe:
+                        console.print(
+                            "  [red]Blocked by safety guardrails:[/red] "
+                            + "; ".join(verdict.violations)
+                        )
+                        break
                     if not dry_run:
                         import subprocess as _sp
-                        result = _sp.run(new_cmd, shell=True, text=True, capture_output=True)
+                        # Guardrail-validated above; interactive apply of an operator-entered command.
+                        result = _sp.run(new_cmd, shell=True, text=True, capture_output=True)  # nosec B602
                         console.print(result.stdout or result.stderr or "Done.")
                     else:
                         console.print(f"  [yellow][DRY RUN] {new_cmd}[/yellow]")
