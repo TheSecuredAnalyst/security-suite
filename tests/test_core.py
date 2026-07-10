@@ -1,7 +1,6 @@
 """Tests for core functionality."""
 
-import pytest
-from core.models import Target, ScanResult, Finding, Severity
+from core.models import ScanResult, Severity, Target
 
 
 class TestTarget:
@@ -50,6 +49,8 @@ class TestScanResult:
             severity=Severity.HIGH,
         )
 
+        assert finding.title == "Test Finding"
+        assert finding.severity == Severity.HIGH
         assert len(result.findings) == 1
         assert result.findings[0].title == "Test Finding"
         assert result.findings[0].severity == Severity.HIGH
