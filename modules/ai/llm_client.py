@@ -1,9 +1,9 @@
 """LLM client abstraction for multiple providers."""
 
-from abc import ABC, abstractmethod
-from typing import Optional, AsyncIterator
-from dataclasses import dataclass
 import json
+from abc import ABC, abstractmethod
+from collections.abc import AsyncIterator
+from dataclasses import dataclass
 
 from core.config import get_settings
 from core.logger import get_logger
@@ -51,7 +51,7 @@ class BaseLLMClient(ABC):
 class AnthropicClient(BaseLLMClient):
     """Anthropic Claude client."""
 
-    def __init__(self, api_key: Optional[str] = None, model: str = "claude-sonnet-4-20250514"):
+    def __init__(self, api_key: str | None = None, model: str = "claude-sonnet-4-20250514"):
         self.api_key = api_key or get_settings().anthropic_api_key
         self.model = model
         self.logger = get_logger("ai.anthropic")
@@ -97,7 +97,7 @@ class AnthropicClient(BaseLLMClient):
             )
 
         except ImportError:
-            raise ImportError("anthropic package not installed. Run: pip install anthropic")
+            raise ImportError("anthropic package not installed. Run: pip install anthropic") from None
 
     async def stream_chat(
         self,
@@ -130,13 +130,13 @@ class AnthropicClient(BaseLLMClient):
                     yield text
 
         except ImportError:
-            raise ImportError("anthropic package not installed. Run: pip install anthropic")
+            raise ImportError("anthropic package not installed. Run: pip install anthropic") from None
 
 
 class OpenAIClient(BaseLLMClient):
     """OpenAI GPT client."""
 
-    def __init__(self, api_key: Optional[str] = None, model: str = "gpt-4o"):
+    def __init__(self, api_key: str | None = None, model: str = "gpt-4o"):
         self.api_key = api_key or get_settings().openai_api_key
         self.model = model
         self.logger = get_logger("ai.openai")
@@ -175,7 +175,7 @@ class OpenAIClient(BaseLLMClient):
             )
 
         except ImportError:
-            raise ImportError("openai package not installed. Run: pip install openai")
+            raise ImportError("openai package not installed. Run: pip install openai") from None
 
     async def stream_chat(
         self,
@@ -204,7 +204,7 @@ class OpenAIClient(BaseLLMClient):
                     yield chunk.choices[0].delta.content
 
         except ImportError:
-            raise ImportError("openai package not installed. Run: pip install openai")
+            raise ImportError("openai package not installed. Run: pip install openai") from None
 
 
 class OllamaClient(BaseLLMClient):
@@ -214,7 +214,7 @@ class OllamaClient(BaseLLMClient):
         self,
         model: str = "llama3.2",
         base_url: str = "http://localhost:11434",
-        api_key: Optional[str] = None,  # Not used but kept for interface consistency
+        api_key: str | None = None,  # Not used but kept for interface consistency
     ):
         self.model = model
         self.base_url = base_url.rstrip("/")
@@ -298,7 +298,7 @@ class OpenAICompatibleClient(BaseLLMClient):
         self,
         base_url: str,
         model: str,
-        api_key: Optional[str] = "not-needed",
+        api_key: str | None = "not-needed",
     ):
         self.base_url = base_url.rstrip("/")
         self.model = model
@@ -339,7 +339,7 @@ class OpenAICompatibleClient(BaseLLMClient):
             )
 
         except ImportError:
-            raise ImportError("openai package not installed. Run: pip install openai")
+            raise ImportError("openai package not installed. Run: pip install openai") from None
 
     async def stream_chat(
         self,
@@ -371,7 +371,7 @@ class OpenAICompatibleClient(BaseLLMClient):
                     yield chunk.choices[0].delta.content
 
         except ImportError:
-            raise ImportError("openai package not installed. Run: pip install openai")
+            raise ImportError("openai package not installed. Run: pip install openai") from None
 
 
 # Pre-configured model shortcuts (maps shortcuts to actual ollama model names)
@@ -397,8 +397,8 @@ OLLAMA_MODELS = {
 
 def get_llm_client(
     provider: str = "anthropic",
-    model: Optional[str] = None,
-    base_url: Optional[str] = None,
+    model: str | None = None,
+    base_url: str | None = None,
     **kwargs
 ) -> BaseLLMClient:
     """Get LLM client by provider name.

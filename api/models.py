@@ -1,12 +1,10 @@
 """Pydantic models for API requests/responses."""
 
 from datetime import datetime
-from typing import Optional, Any
 from enum import Enum
+from typing import Any
 
 from pydantic import BaseModel, Field
-
-from core.models import Severity
 
 
 class SeverityEnum(str, Enum):
@@ -54,9 +52,9 @@ class ScanResponse(BaseModel):
     status: str = Field(..., description="pending, running, completed, failed")
     findings_count: int = 0
     findings: list[FindingResponse] = Field(default_factory=list)
-    started_at: Optional[datetime] = None
-    completed_at: Optional[datetime] = None
-    error: Optional[str] = None
+    started_at: datetime | None = None
+    completed_at: datetime | None = None
+    error: str | None = None
 
 
 class ScanListResponse(BaseModel):

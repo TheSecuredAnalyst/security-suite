@@ -9,7 +9,7 @@ DNS resolution, so they receive a warning but are not blocked.
 from __future__ import annotations
 
 import ipaddress
-from typing import Iterable
+from collections.abc import Iterable
 
 
 def _parse_networks(cidrs: list[str]) -> list[ipaddress._BaseNetwork]:

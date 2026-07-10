@@ -1,8 +1,9 @@
 """HTTP client utilities with rate limiting and retry logic."""
 
 import asyncio
+from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
-from typing import Any, AsyncIterator, Optional
+from typing import Any
 
 import httpx
 
@@ -47,10 +48,10 @@ class HTTPClient:
 
     def __init__(
         self,
-        base_url: Optional[str] = None,
-        timeout: Optional[int] = None,
-        rate_limit: Optional[float] = None,
-        headers: Optional[dict[str, str]] = None,
+        base_url: str | None = None,
+        timeout: int | None = None,
+        rate_limit: float | None = None,
+        headers: dict[str, str] | None = None,
     ):
         settings = get_settings()
         self.timeout = timeout or settings.request_timeout
@@ -74,8 +75,8 @@ class HTTPClient:
     async def get(
         self,
         url: str,
-        params: Optional[dict[str, Any]] = None,
-        headers: Optional[dict[str, str]] = None,
+        params: dict[str, Any] | None = None,
+        headers: dict[str, str] | None = None,
     ) -> httpx.Response:
         """Perform rate-limited GET request."""
         await self.rate_limiter.acquire()
@@ -84,9 +85,9 @@ class HTTPClient:
     async def post(
         self,
         url: str,
-        data: Optional[dict[str, Any]] = None,
-        json: Optional[dict[str, Any]] = None,
-        headers: Optional[dict[str, str]] = None,
+        data: dict[str, Any] | None = None,
+        json: dict[str, Any] | None = None,
+        headers: dict[str, str] | None = None,
     ) -> httpx.Response:
         """Perform rate-limited POST request."""
         await self.rate_limiter.acquire()
@@ -95,7 +96,7 @@ class HTTPClient:
     async def head(
         self,
         url: str,
-        headers: Optional[dict[str, str]] = None,
+        headers: dict[str, str] | None = None,
     ) -> httpx.Response:
         """Perform rate-limited HEAD request."""
         await self.rate_limiter.acquire()
@@ -114,7 +115,7 @@ class HTTPClient:
 
 @asynccontextmanager
 async def create_client(
-    base_url: Optional[str] = None,
+    base_url: str | None = None,
     **kwargs,
 ) -> AsyncIterator[HTTPClient]:
     """Create an HTTP client context manager."""

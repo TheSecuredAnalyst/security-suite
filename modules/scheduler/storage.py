@@ -1,19 +1,18 @@
 """Storage backend for scheduler data."""
 
 import json
-from pathlib import Path
-from typing import Optional
 from datetime import datetime
+from pathlib import Path
 
-from core.logger import get_logger
 from core.config import get_settings
-from modules.scheduler.scheduler import ScheduledScan, ScanJob, ScanScheduler
+from core.logger import get_logger
+from modules.scheduler.scheduler import ScanJob, ScanScheduler, ScheduledScan
 
 
 class ScheduleStorage:
     """Persistent storage for schedules and job history."""
 
-    def __init__(self, storage_dir: Optional[Path] = None):
+    def __init__(self, storage_dir: Path | None = None):
         """Initialize storage.
 
         Args:

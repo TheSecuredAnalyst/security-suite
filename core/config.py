@@ -2,7 +2,6 @@
 
 from functools import lru_cache
 from pathlib import Path
-from typing import Optional
 
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -21,16 +20,16 @@ class Settings(BaseSettings):
     app_name: str = "Security Suite"
     debug: bool = False
     data_dir: Path = Field(default=Path.home() / ".secsuite")
-    seclists_path: Optional[Path] = None
+    seclists_path: Path | None = None
 
     # API Keys (optional)
-    shodan_api_key: Optional[str] = None
-    virustotal_api_key: Optional[str] = None
-    hunter_api_key: Optional[str] = None
+    shodan_api_key: str | None = None
+    virustotal_api_key: str | None = None
+    hunter_api_key: str | None = None
 
     # AI Integration (optional)
-    openai_api_key: Optional[str] = None
-    anthropic_api_key: Optional[str] = None
+    openai_api_key: str | None = None
+    anthropic_api_key: str | None = None
 
     # Network settings
     request_timeout: int = 30

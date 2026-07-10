@@ -2,7 +2,7 @@
 
 from fastapi import APIRouter
 
-from api.models import ModulesResponse, ModuleInfo
+from api.models import ModuleInfo, ModulesResponse
 from core.logger import get_logger
 
 logger = get_logger("api.modules")
@@ -13,7 +13,7 @@ router = APIRouter()
 @router.get("/", response_model=ModulesResponse)
 async def list_modules() -> ModulesResponse:
     """List all available modules and their capabilities.
-    
+
     Returns:
         ModulesResponse with module information
     """
@@ -49,7 +49,7 @@ async def list_modules() -> ModulesResponse:
             description="Port scanning (requires nmap)",
         ),
     ]
-    
+
     webscanner_modules = [
         ModuleInfo(
             name="crawler",
@@ -77,7 +77,7 @@ async def list_modules() -> ModulesResponse:
             description="SSL/TLS analysis (certificate, protocols, vulnerabilities)",
         ),
     ]
-    
+
     apisec_modules = [
         ModuleInfo(
             name="openapi",
@@ -100,7 +100,7 @@ async def list_modules() -> ModulesResponse:
             description="Parameter fuzzing and anomaly detection",
         ),
     ]
-    
+
     compliance_modules = [
         ModuleInfo(
             name="owasp",
@@ -113,7 +113,7 @@ async def list_modules() -> ModulesResponse:
             description="CIS Controls assessment",
         ),
     ]
-    
+
     return ModulesResponse(
         osint=osint_modules,
         webscanner=webscanner_modules,
@@ -126,23 +126,23 @@ async def list_modules() -> ModulesResponse:
 @router.get("/{category}")
 async def list_modules_by_category(category: str) -> dict:
     """Get modules for a specific category.
-    
+
     Args:
         category: Module category (osint, webscanner, apisec, compliance)
-        
+
     Returns:
         List of modules in category
     """
     modules = await list_modules()
-    
+
     category_map = {
         "osint": modules.osint,
         "webscanner": modules.webscanner,
         "apisec": modules.apisec,
         "compliance": modules.compliance,
     }
-    
+
     if category not in category_map:
         return {"error": f"Unknown category: {category}"}
-    
+
     return {"category": category, "modules": category_map[category]}

@@ -1,14 +1,12 @@
 """AI Security Copilot - Natural language security analysis."""
 
 import json
-from typing import Optional, AsyncIterator
-from datetime import datetime
+from collections.abc import AsyncIterator
 
-from core.models import ScanResult, Finding, Severity
 from core.logger import get_logger
-from modules.ai.llm_client import get_llm_client, BaseLLMClient, Message, LLMResponse
-from modules.ai.correlator import FindingCorrelator, CorrelationReport
-
+from core.models import ScanResult, Severity
+from modules.ai.correlator import CorrelationReport, FindingCorrelator
+from modules.ai.llm_client import BaseLLMClient, Message, get_llm_client
 
 SYSTEM_PROMPT = """You are an expert cybersecurity analyst and AI Security Copilot. Your role is to:
 
@@ -37,9 +35,9 @@ class SecurityCopilot:
     def __init__(
         self,
         provider: str = "anthropic",
-        model: Optional[str] = None,
-        api_key: Optional[str] = None,
-        base_url: Optional[str] = None,
+        model: str | None = None,
+        api_key: str | None = None,
+        base_url: str | None = None,
     ):
         """Initialize Security Copilot.
 
@@ -69,13 +67,13 @@ class SecurityCopilot:
         if base_url:
             kwargs["base_url"] = base_url
 
-        self._client: Optional[BaseLLMClient] = None
+        self._client: BaseLLMClient | None = None
         self._client_kwargs = kwargs
 
         # Conversation history for context
         self.conversation: list[Message] = []
         self.scan_context: list[ScanResult] = []
-        self.correlation_report: Optional[CorrelationReport] = None
+        self.correlation_report: CorrelationReport | None = None
 
     def _get_client(self) -> BaseLLMClient:
         """Lazy load LLM client."""

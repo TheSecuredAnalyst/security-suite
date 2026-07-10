@@ -1,18 +1,16 @@
 """API Authentication security tester."""
 
-import asyncio
 import base64
 import json
 from dataclasses import dataclass, field
-from typing import Optional
 from urllib.parse import urljoin
 
 import httpx
 
 from core import load_wordlist
-from core.models import Target, ScanResult, Finding, Severity
 from core.logger import get_logger
-from modules.apisec.openapi_parser import ParsedAPI, APIEndpoint
+from core.models import Finding, ScanResult, Severity, Target
+from modules.apisec.openapi_parser import ParsedAPI
 
 
 @dataclass
@@ -53,7 +51,7 @@ class APIAuthTester:
         {"X-Real-IP": "127.0.0.1"},
     ]
 
-    def __init__(self, timeout: float = 10.0, seclists_path: Optional[str] = None):
+    def __init__(self, timeout: float = 10.0, seclists_path: str | None = None):
         self.logger = get_logger("apisec.auth_tester")
         self.timeout = timeout
         # Load JWT secrets: SecLists file if available, else built-in fallback

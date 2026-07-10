@@ -3,16 +3,16 @@
 import asyncio
 import random
 import string
-from dataclasses import dataclass, field
-from typing import Optional, AsyncIterator
+from collections.abc import AsyncIterator
+from dataclasses import dataclass
 from urllib.parse import urljoin
 
 import httpx
 
 from core import load_wordlist
-from core.models import Target, ScanResult, Finding, Severity
 from core.logger import get_logger
-from modules.apisec.openapi_parser import ParsedAPI, APIEndpoint, APIParameter
+from core.models import Finding, ScanResult, Severity, Target
+from modules.apisec.openapi_parser import APIEndpoint, APIParameter, ParsedAPI
 
 
 @dataclass
@@ -25,7 +25,7 @@ class FuzzResult:
     status_code: int
     response_time: float
     anomaly: bool = False
-    finding: Optional[Finding] = None
+    finding: Finding | None = None
 
 
 class APIFuzzer:
@@ -111,8 +111,8 @@ class APIFuzzer:
         timeout: float = 10.0,
         max_requests: int = 100,
         delay: float = 0.1,
-        auth_token: Optional[str] = None,
-        seclists_path: Optional[str] = None,
+        auth_token: str | None = None,
+        seclists_path: str | None = None,
     ):
         self.logger = get_logger("apisec.fuzzer")
         self.timeout = timeout
@@ -215,7 +215,7 @@ class APIFuzzer:
         base_url: str,
         endpoint: APIEndpoint,
         headers: dict,
-    ) -> Optional[httpx.Response]:
+    ) -> httpx.Response | None:
         """Get baseline response for comparison."""
         url = urljoin(base_url, endpoint.path.replace("{", "1").replace("}", ""))
 
@@ -254,7 +254,7 @@ class APIFuzzer:
         param: APIParameter,
         payload: any,
         headers: dict,
-        baseline: Optional[httpx.Response],
+        baseline: httpx.Response | None,
     ) -> FuzzResult:
         """Fuzz a single parameter."""
         url = urljoin(base_url, endpoint.path.replace("{", "1").replace("}", ""))
@@ -314,7 +314,7 @@ class APIFuzzer:
         base_url: str,
         endpoint: APIEndpoint,
         headers: dict,
-        baseline: Optional[httpx.Response],
+        baseline: httpx.Response | None,
     ) -> AsyncIterator[FuzzResult]:
         """Fuzz request body."""
         url = urljoin(base_url, endpoint.path.replace("{", "1").replace("}", ""))
@@ -384,8 +384,8 @@ class APIFuzzer:
         param: APIParameter,
         payload: any,
         response: httpx.Response,
-        baseline: Optional[httpx.Response],
-    ) -> Optional[Finding]:
+        baseline: httpx.Response | None,
+    ) -> Finding | None:
         """Check for anomalies in response."""
         body = response.text.lower()
 
@@ -471,8 +471,8 @@ class APIFuzzer:
         endpoint: APIEndpoint,
         body: any,
         response: httpx.Response,
-        baseline: Optional[httpx.Response],
-    ) -> Optional[Finding]:
+        baseline: httpx.Response | None,
+    ) -> Finding | None:
         """Check for anomalies in body fuzz response."""
         resp_text = response.text.lower()
 

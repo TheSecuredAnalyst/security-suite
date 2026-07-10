@@ -2,17 +2,15 @@
 
 from __future__ import annotations
 
+import os
 import shutil
 import socket
 import subprocess
-import os
 from dataclasses import dataclass, field
-from typing import Optional
 
-from core.models import Finding, ScanResult, Severity
 from core.logger import get_logger
-from modules.ai.llm_client import get_llm_client, BaseLLMClient, Message
-
+from core.models import Finding, ScanResult, Severity
+from modules.ai.llm_client import BaseLLMClient, Message, get_llm_client
 
 # ── Data types ────────────────────────────────────────────────────────────────
 
@@ -221,8 +219,8 @@ class RemediationCopilot:
     def __init__(
         self,
         provider: str = "ollama",
-        model: Optional[str] = None,
-        base_url: Optional[str] = None,
+        model: str | None = None,
+        base_url: str | None = None,
         target: str = "localhost",
     ):
         self.logger = get_logger("ai.remediation_copilot")
@@ -233,7 +231,7 @@ class RemediationCopilot:
             self._client_kwargs["model"] = model
         if base_url:
             self._client_kwargs["base_url"] = base_url
-        self._client: Optional[BaseLLMClient] = None
+        self._client: BaseLLMClient | None = None
 
     def _get_client(self) -> BaseLLMClient:
         if self._client is None:

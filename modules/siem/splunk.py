@@ -1,11 +1,10 @@
 """Splunk HEC (HTTP Event Collector) exporter."""
 
 import json
-from typing import Optional
 
 import httpx
 
-from modules.siem.base import SIEMExporter, SIEMEvent
+from modules.siem.base import SIEMEvent, SIEMExporter
 
 
 class SplunkExporter(SIEMExporter):

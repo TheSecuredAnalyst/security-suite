@@ -10,8 +10,7 @@ from __future__ import annotations
 import json
 import os
 from datetime import datetime
-from typing import Any, Optional
-
+from typing import Any
 
 # ── Internal helpers ──────────────────────────────────────────────────────────
 
@@ -207,13 +206,13 @@ class VulnReporter:
         """
         try:
             from docx import Document
-            from docx.shared import Pt
             from docx.enum.text import WD_ALIGN_PARAGRAPH
+            from docx.shared import Pt
         except ImportError:
             raise ImportError(
                 "python-docx is required for DOCX export. "
                 "Install with: pip install python-docx"
-            )
+            ) from None
 
         doc = Document()
         style = doc.styles["Normal"]

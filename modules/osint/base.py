@@ -1,10 +1,9 @@
 """Base class for OSINT modules."""
 
 from abc import ABC, abstractmethod
-from typing import Any
 
-from core.models import Target, ScanResult
 from core.logger import get_logger
+from core.models import ScanResult, Target
 
 
 class OSINTModule(ABC):

@@ -25,7 +25,6 @@ import asyncio
 import os
 import re
 from datetime import datetime, timedelta, timezone
-from typing import Optional
 
 import httpx
 
@@ -332,9 +331,14 @@ def calculate_risk_score(cve_details: list[dict]) -> tuple[int, str]:
         for c in cve_details
     )
     score = min(int(total * 10), 100)
-    if score >= 80:   level = "CRITICAL"
-    elif score >= 60: level = "HIGH"
-    elif score >= 40: level = "MEDIUM"
-    elif score >= 20: level = "LOW"
-    else:             level = "MINIMAL"
+    if score >= 80:
+        level = "CRITICAL"
+    elif score >= 60:
+        level = "HIGH"
+    elif score >= 40:
+        level = "MEDIUM"
+    elif score >= 20:
+        level = "LOW"
+    else:
+        level = "MINIMAL"
     return score, level

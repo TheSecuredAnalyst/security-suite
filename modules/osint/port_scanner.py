@@ -1,13 +1,12 @@
 """Port scanner module using nmap."""
 
 import asyncio
-import shutil
-import xml.etree.ElementTree as ET
-from typing import Optional
-import tempfile
 import os
+import shutil
+import tempfile
+import xml.etree.ElementTree as ET
 
-from core.models import Target, ScanResult, Severity
+from core.models import ScanResult, Severity, Target
 from modules.osint.base import OSINTModule
 
 
@@ -37,7 +36,7 @@ class PortScanner(OSINTModule):
 
     def __init__(
         self,
-        ports: Optional[str] = None,
+        ports: str | None = None,
         scan_type: str = "default",
         enable_os_detection: bool = False,
         enable_scripts: bool = False,
@@ -229,7 +228,7 @@ class PortScanner(OSINTModule):
         ports_to_scan = self.COMMON_PORTS
         semaphore = asyncio.Semaphore(100)
 
-        async def check_port(port: int) -> Optional[int]:
+        async def check_port(port: int) -> int | None:
             async with semaphore:
                 try:
                     conn = asyncio.open_connection(host, port)

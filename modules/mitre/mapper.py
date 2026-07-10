@@ -8,7 +8,6 @@ Covers: CVE IDs, service/port-based findings, and misconfiguration patterns.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Optional
 
 
 @dataclass
@@ -248,11 +247,11 @@ class MITREMapper:
     """Tag security findings with MITRE ATT&CK techniques."""
 
     @staticmethod
-    def from_cve(cve_id: str) -> Optional[ATTACKTag]:
+    def from_cve(cve_id: str) -> ATTACKTag | None:
         return CVE_MAP.get(cve_id.upper())
 
     @staticmethod
-    def from_service(service: str, port: int | None = None) -> Optional[ATTACKTag]:
+    def from_service(service: str, port: int | None = None) -> ATTACKTag | None:
         svc = service.lower().replace("-", "")
         if svc in SERVICE_MAP:
             return SERVICE_MAP[svc]
@@ -261,7 +260,7 @@ class MITREMapper:
         return None
 
     @staticmethod
-    def from_misconfig(pattern: str) -> Optional[ATTACKTag]:
+    def from_misconfig(pattern: str) -> ATTACKTag | None:
         return MISCONFIG_MAP.get(pattern.lower())
 
     @staticmethod
@@ -274,7 +273,7 @@ class MITREMapper:
         tags: list[ATTACKTag] = []
         seen: set[str] = set()
 
-        def _add(tag: Optional[ATTACKTag]) -> None:
+        def _add(tag: ATTACKTag | None) -> None:
             if tag and tag.full_id not in seen:
                 tags.append(tag)
                 seen.add(tag.full_id)

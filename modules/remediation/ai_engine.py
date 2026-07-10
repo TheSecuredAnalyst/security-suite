@@ -16,11 +16,10 @@ from __future__ import annotations
 import json
 import re
 from dataclasses import dataclass, field
-from typing import Optional
 
 import ollama
 
-from core.guardrails import guardrails, ScriptValidationResult
+from core.guardrails import ScriptValidationResult, guardrails
 from core.logger import get_logger
 from modules.exploit_engine.runner import ExploitResult
 
@@ -49,7 +48,7 @@ class RemediationScript:
     verification_command: str = ""      # Confirm fix worked
     explanation: str = ""               # Plain-English explanation
 
-    validation: Optional[ScriptValidationResult] = None
+    validation: ScriptValidationResult | None = None
     safe: bool = False
     warnings: list[str] = field(default_factory=list)
 
@@ -246,7 +245,7 @@ class RemediationAI:
         return script
 
     @staticmethod
-    def _extract_json(text: str) -> Optional[dict]:
+    def _extract_json(text: str) -> dict | None:
         """Extract JSON object from model output (handles markdown code fences)."""
         # Try direct parse
         try:

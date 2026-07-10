@@ -1,11 +1,10 @@
 """Email harvester module."""
 
 import re
-from typing import Set
 from urllib.parse import urljoin, urlparse
 
-from core.models import Target, ScanResult, Severity
 from core.http_client import HTTPClient
+from core.models import ScanResult, Severity, Target
 from modules.osint.base import OSINTModule
 
 
@@ -33,8 +32,8 @@ class EmailHarvester(OSINTModule):
         domain = urlparse(base_url).netloc
         self.logger.info(f"Harvesting emails from {domain}")
 
-        found_emails: Set[str] = set()
-        scanned_pages: Set[str] = set()
+        found_emails: set[str] = set()
+        scanned_pages: set[str] = set()
 
         try:
             async with HTTPClient() as client:
@@ -73,7 +72,7 @@ class EmailHarvester(OSINTModule):
         result.complete()
         return result
 
-    def _extract_emails(self, html: str) -> Set[str]:
+    def _extract_emails(self, html: str) -> set[str]:
         emails = set()
         matches = self.EMAIL_PATTERN.findall(html)
         invalid = [".png", ".jpg", ".gif", ".css", ".js", "example.com"]

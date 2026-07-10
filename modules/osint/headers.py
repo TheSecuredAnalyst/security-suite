@@ -1,7 +1,7 @@
 """HTTP header analysis module."""
 
-from core.models import Target, ScanResult, Severity
 from core.http_client import HTTPClient
+from core.models import ScanResult, Severity, Target
 from modules.osint.base import OSINTModule
 
 

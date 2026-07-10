@@ -1,14 +1,16 @@
 """Compliance checking engine."""
 
 from dataclasses import dataclass, field
-from datetime import datetime
-from typing import Optional
+from datetime import datetime, timezone
 
-from core.models import Target, ScanResult, Severity
 from core.logger import get_logger
+from core.models import ScanResult, Severity, Target
 from modules.compliance.standards import (
-    SecurityStandard, ControlCheck, ComplianceStatus,
-    OWASP_TOP_10, CIS_CONTROLS
+    CIS_CONTROLS,
+    OWASP_TOP_10,
+    ComplianceStatus,
+    ControlCheck,
+    SecurityStandard,
 )
 
 
@@ -19,7 +21,7 @@ class ControlResult:
     status: ComplianceStatus
     message: str = ""
     evidence: dict = field(default_factory=dict)
-    timestamp: datetime = field(default_factory=datetime.utcnow)
+    timestamp: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
 
 
 @dataclass
@@ -28,7 +30,7 @@ class ComplianceReport:
     target: str
     standard: SecurityStandard
     results: list[ControlResult] = field(default_factory=list)
-    generated_at: datetime = field(default_factory=datetime.utcnow)
+    generated_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
 
     @property
     def total_controls(self) -> int:
@@ -94,7 +96,7 @@ class ComplianceChecker:
         """List available security standards."""
         return list(self.STANDARDS.values())
 
-    def get_standard(self, standard_id: str) -> Optional[SecurityStandard]:
+    def get_standard(self, standard_id: str) -> SecurityStandard | None:
         """Get a specific standard by ID."""
         return self.STANDARDS.get(standard_id)
 
@@ -102,7 +104,7 @@ class ComplianceChecker:
         self,
         target: Target,
         standard_id: str,
-        scan_results: Optional[list[ScanResult]] = None,
+        scan_results: list[ScanResult] | None = None,
     ) -> ComplianceReport:
         """Run compliance check against a standard.
 

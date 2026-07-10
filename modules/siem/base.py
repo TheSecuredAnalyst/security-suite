@@ -1,13 +1,12 @@
 """Base SIEM exporter interface."""
 
 from abc import ABC, abstractmethod
-from dataclasses import dataclass, field, asdict
+from dataclasses import asdict, dataclass, field
 from datetime import datetime
-from typing import Optional, Any
 from enum import Enum
 
-from core.models import ScanResult, Finding, Severity
 from core.logger import get_logger
+from core.models import Finding, ScanResult
 
 
 class EventType(str, Enum):
@@ -29,9 +28,9 @@ class SIEMEvent:
     message: str = ""
     target: str = ""
     module: str = ""
-    finding_title: Optional[str] = None
-    finding_description: Optional[str] = None
-    risk_score: Optional[float] = None
+    finding_title: str | None = None
+    finding_description: str | None = None
+    risk_score: float | None = None
     raw_data: dict = field(default_factory=dict)
     tags: list[str] = field(default_factory=list)
 

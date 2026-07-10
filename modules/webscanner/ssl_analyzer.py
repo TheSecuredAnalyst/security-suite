@@ -1,12 +1,11 @@
 """SSL/TLS certificate and configuration analyzer."""
 
-import ssl
-import socket
 import asyncio
+import socket
+import ssl
 from datetime import datetime
-from typing import Optional
 
-from core.models import Target, ScanResult, Severity
+from core.models import ScanResult, Severity, Target
 from modules.webscanner.base import WebScannerModule
 
 
@@ -115,7 +114,7 @@ class SSLAnalyzer(WebScannerModule):
         result.complete()
         return result
 
-    async def _get_certificate(self, host: str, port: int) -> Optional[dict]:
+    async def _get_certificate(self, host: str, port: int) -> dict | None:
         """Get SSL certificate information."""
         try:
             loop = asyncio.get_event_loop()

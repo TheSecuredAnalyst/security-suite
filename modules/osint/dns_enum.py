@@ -1,14 +1,11 @@
 """DNS enumeration module."""
 
-import asyncio
-import ipaddress
-from typing import Optional
 
-import dns.resolver
 import dns.asyncresolver
+import dns.resolver
 import dns.reversename
 
-from core.models import Target, ScanResult, Severity
+from core.models import ScanResult, Severity, Target
 from modules.osint.base import OSINTModule
 
 

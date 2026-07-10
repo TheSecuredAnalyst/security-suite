@@ -1,11 +1,10 @@
 """Click and event tracking for phishing campaigns."""
 
-from datetime import datetime
-from typing import Optional
 from dataclasses import dataclass, field
+from datetime import datetime, timezone
 
 from core.logger import get_logger
-from modules.phishing.campaign import PhishingCampaign, CampaignTarget
+from modules.phishing.campaign import CampaignTarget, PhishingCampaign
 
 
 @dataclass
@@ -14,9 +13,9 @@ class TrackingEvent:
     campaign_id: str
     target_email: str
     event_type: str  # "open", "click", "submit"
-    timestamp: datetime = field(default_factory=datetime.utcnow)
-    ip_address: Optional[str] = None
-    user_agent: Optional[str] = None
+    timestamp: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
+    ip_address: str | None = None
+    user_agent: str | None = None
     metadata: dict = field(default_factory=dict)
 
 
@@ -31,8 +30,8 @@ class ClickTracker:
         self,
         campaign: PhishingCampaign,
         target: CampaignTarget,
-        ip_address: Optional[str] = None,
-        user_agent: Optional[str] = None,
+        ip_address: str | None = None,
+        user_agent: str | None = None,
     ) -> TrackingEvent:
         """Track an email open event."""
         event = TrackingEvent(
@@ -50,8 +49,8 @@ class ClickTracker:
         self,
         campaign: PhishingCampaign,
         target: CampaignTarget,
-        ip_address: Optional[str] = None,
-        user_agent: Optional[str] = None,
+        ip_address: str | None = None,
+        user_agent: str | None = None,
     ) -> TrackingEvent:
         """Track a link click event."""
         event = TrackingEvent(
@@ -70,8 +69,8 @@ class ClickTracker:
         campaign: PhishingCampaign,
         target: CampaignTarget,
         fields_submitted: list[str],
-        ip_address: Optional[str] = None,
-        user_agent: Optional[str] = None,
+        ip_address: str | None = None,
+        user_agent: str | None = None,
     ) -> TrackingEvent:
         """Track a credential submission event."""
         event = TrackingEvent(
@@ -97,11 +96,6 @@ class ClickTracker:
     def generate_report(self, campaign: PhishingCampaign) -> dict:
         """Generate a tracking report for a campaign."""
         events = self.get_campaign_events(campaign.id)
-
-        # Event counts
-        opens = [e for e in events if e.event_type == "open"]
-        clicks = [e for e in events if e.event_type == "click"]
-        submissions = [e for e in events if e.event_type == "submit"]
 
         # Time analysis
         time_to_click = []

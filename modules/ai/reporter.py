@@ -1,15 +1,13 @@
 """Security report generator - HTML and PDF reports."""
 
 import json
+from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
-from typing import Optional
-from dataclasses import dataclass
 
-from core.models import ScanResult, Severity
 from core.logger import get_logger
-from core.config import get_settings
-from modules.ai.correlator import CorrelationReport, FindingCorrelator
+from core.models import ScanResult, Severity
+from modules.ai.correlator import FindingCorrelator
 
 
 @dataclass
@@ -34,8 +32,8 @@ class ReportGenerator:
     def generate_html(
         self,
         scan_results: list[ScanResult],
-        config: Optional[ReportConfig] = None,
-        ai_analysis: Optional[str] = None,
+        config: ReportConfig | None = None,
+        ai_analysis: str | None = None,
     ) -> str:
         """Generate HTML report.
 
@@ -320,8 +318,8 @@ class ReportGenerator:
         self,
         scan_results: list[ScanResult],
         output_path: str,
-        config: Optional[ReportConfig] = None,
-        ai_analysis: Optional[str] = None,
+        config: ReportConfig | None = None,
+        ai_analysis: str | None = None,
     ) -> Path:
         """Save HTML report to file.
 
@@ -343,7 +341,7 @@ class ReportGenerator:
     def generate_json(
         self,
         scan_results: list[ScanResult],
-        config: Optional[ReportConfig] = None,
+        config: ReportConfig | None = None,
     ) -> dict:
         """Generate JSON report.
 
@@ -407,7 +405,7 @@ class ReportGenerator:
         self,
         scan_results: list[ScanResult],
         output_path: str,
-        config: Optional[ReportConfig] = None,
+        config: ReportConfig | None = None,
     ) -> Path:
         """Save JSON report to file."""
         data = self.generate_json(scan_results, config)

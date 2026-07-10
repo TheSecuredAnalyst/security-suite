@@ -1,10 +1,9 @@
 """Technology detection module."""
 
 import re
-from typing import Optional
 
-from core.models import Target, ScanResult, Severity
 from core.http_client import HTTPClient
+from core.models import ScanResult, Severity, Target
 from modules.osint.base import OSINTModule
 
 

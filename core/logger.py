@@ -1,8 +1,6 @@
 """Logging configuration for Security Suite."""
 
 import logging
-import sys
-from typing import Optional
 
 from rich.console import Console
 from rich.logging import RichHandler
@@ -11,7 +9,7 @@ from rich.logging import RichHandler
 console = Console()
 
 
-def get_logger(name: str, level: Optional[int] = None) -> logging.Logger:
+def get_logger(name: str, level: int | None = None) -> logging.Logger:
     """Get a configured logger instance.
 
     Args:

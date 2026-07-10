@@ -9,16 +9,12 @@ from __future__ import annotations
 
 import asyncio
 import hashlib
-import json
 import os
-import shlex
 import shutil
-import subprocess
 import tempfile
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Optional
 
 from core.guardrails import guardrails
 from core.logger import get_logger
@@ -303,7 +299,7 @@ class AutoHardener:
     @staticmethod
     def _explain_script(script: str) -> str:
         """Parse script lines and describe what each does (for dry-run output)."""
-        lines = [l.strip() for l in script.splitlines() if l.strip() and not l.startswith("#")]
+        lines = [ln.strip() for ln in script.splitlines() if ln.strip() and not ln.startswith("#")]
         explained = []
         for line in lines[:30]:  # cap at 30 lines
             explained.append(f"  WOULD RUN: {line}")

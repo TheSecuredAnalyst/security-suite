@@ -4,14 +4,13 @@ from __future__ import annotations
 
 import asyncio
 import ipaddress
+import os
 import shutil
 import tempfile
-import os
 import xml.etree.ElementTree as ET
-from typing import Optional
 
 from core.logger import get_logger
-from core.models import Target, ScanResult, Severity
+from core.models import ScanResult, Severity, Target
 
 logger = get_logger("vulnscan.scanner")
 
@@ -90,7 +89,7 @@ def expand_target(value: str) -> list[str]:
 async def scan_host(
     ip: str,
     profile: str = "normal",
-    custom_ports: Optional[list[int]] = None,
+    custom_ports: list[int] | None = None,
 ) -> list[dict]:
     """
     Run nmap against a single host and return discovered services.
@@ -199,7 +198,7 @@ class NetworkScanner:
     def __init__(
         self,
         profile: str = "normal",
-        custom_ports: Optional[list[int]] = None,
+        custom_ports: list[int] | None = None,
         max_parallel: int = 25,
     ):
         self.profile = profile
@@ -263,7 +262,7 @@ class NetworkScanner:
         ]
 
         result.add_finding(
-            title=f"Open Services Discovered",
+            title="Open Services Discovered",
             description=f"Found {len(services)} open service(s) across all hosts",
             severity=Severity.INFO,
             data={"count": len(services), "services": services[:20]},

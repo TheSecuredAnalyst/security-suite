@@ -1,10 +1,9 @@
 """VirusTotal integration module."""
 
-from typing import Optional
 
-from core.models import Target, ScanResult, Severity
 from core.config import get_settings
 from core.http_client import HTTPClient
+from core.models import ScanResult, Severity, Target
 from modules.osint.base import OSINTModule
 
 
@@ -16,7 +15,7 @@ class VirusTotalScanner(OSINTModule):
 
     VT_API_BASE = "https://www.virustotal.com/api/v3"
 
-    def __init__(self, api_key: Optional[str] = None):
+    def __init__(self, api_key: str | None = None):
         super().__init__()
         self.api_key = api_key or get_settings().virustotal_api_key
 

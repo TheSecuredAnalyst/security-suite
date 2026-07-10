@@ -13,12 +13,12 @@ import json
 import os
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 import httpx
 
 from core.logger import get_logger
-from core.models import Target, ScanResult, Severity
+from core.models import ScanResult, Severity, Target
 
 logger = get_logger("threat_intel.ip_scanner")
 
@@ -73,7 +73,7 @@ class _Cache:
                 pass
         return {}
 
-    def get(self, ip: str) -> Optional[dict]:
+    def get(self, ip: str) -> dict | None:
         entry = self._data.get(ip)
         if not entry:
             return None
@@ -93,7 +93,7 @@ class _Cache:
 
 # ── Per-source async fetchers ─────────────────────────────────────────────────
 
-async def _fetch_vt(ip: str, api_key: str, client: httpx.AsyncClient) -> Optional[dict]:
+async def _fetch_vt(ip: str, api_key: str, client: httpx.AsyncClient) -> dict | None:
     url = f"{VT_API_BASE}/ip_addresses/{ip}"
     for attempt in range(3):
         try:
@@ -112,7 +112,7 @@ async def _fetch_vt(ip: str, api_key: str, client: httpx.AsyncClient) -> Optiona
     return None
 
 
-async def _fetch_threatfox(ip: str, client: httpx.AsyncClient) -> Optional[dict]:
+async def _fetch_threatfox(ip: str, client: httpx.AsyncClient) -> dict | None:
     try:
         resp = await client.post(
             THREATFOX_URL,
@@ -124,7 +124,7 @@ async def _fetch_threatfox(ip: str, client: httpx.AsyncClient) -> Optional[dict]
         return None
 
 
-async def _fetch_abuseipdb(ip: str, api_key: str, client: httpx.AsyncClient) -> Optional[dict]:
+async def _fetch_abuseipdb(ip: str, api_key: str, client: httpx.AsyncClient) -> dict | None:
     try:
         resp = await client.get(
             ABUSEIPDB_URL,
@@ -137,7 +137,7 @@ async def _fetch_abuseipdb(ip: str, api_key: str, client: httpx.AsyncClient) -> 
         return None
 
 
-async def _fetch_shodan(ip: str, api_key: str, client: httpx.AsyncClient) -> Optional[dict]:
+async def _fetch_shodan(ip: str, api_key: str, client: httpx.AsyncClient) -> dict | None:
     try:
         resp = await client.get(
             f"{SHODAN_URL}/{ip}",
@@ -151,7 +151,7 @@ async def _fetch_shodan(ip: str, api_key: str, client: httpx.AsyncClient) -> Opt
         return None
 
 
-async def _fetch_otx(ip: str, api_key: str, client: httpx.AsyncClient) -> Optional[dict]:
+async def _fetch_otx(ip: str, api_key: str, client: httpx.AsyncClient) -> dict | None:
     try:
         resp = await client.get(
             f"{OTX_URL}/{ip}/general",
@@ -163,7 +163,7 @@ async def _fetch_otx(ip: str, api_key: str, client: httpx.AsyncClient) -> Option
         return None
 
 
-async def _fetch_greynoise(ip: str, api_key: str, client: httpx.AsyncClient) -> Optional[dict]:
+async def _fetch_greynoise(ip: str, api_key: str, client: httpx.AsyncClient) -> dict | None:
     try:
         resp = await client.get(
             f"{GREYNOISE_URL}/{ip}",
@@ -179,7 +179,7 @@ async def _fetch_greynoise(ip: str, api_key: str, client: httpx.AsyncClient) -> 
 
 # ── Source parsers ────────────────────────────────────────────────────────────
 
-def _parse_vt(data: Optional[dict], threshold: int = 1) -> Optional[dict]:
+def _parse_vt(data: dict | None, threshold: int = 1) -> dict | None:
     if not data or "data" not in data:
         return None
     attrs = data["data"]["attributes"]
@@ -212,7 +212,7 @@ def _parse_vt(data: Optional[dict], threshold: int = 1) -> Optional[dict]:
     }
 
 
-def _parse_threatfox(data: Optional[dict]) -> dict:
+def _parse_threatfox(data: dict | None) -> dict:
     if not data or data.get("query_status") not in ("ok", "no_results"):
         return {}
     iocs = data.get("data") or []
@@ -222,7 +222,7 @@ def _parse_threatfox(data: Optional[dict]) -> dict:
     }
 
 
-def _parse_abuseipdb(data: Optional[dict]) -> dict:
+def _parse_abuseipdb(data: dict | None) -> dict:
     if not data:
         return {}
     d = data.get("data", {})
@@ -233,7 +233,7 @@ def _parse_abuseipdb(data: Optional[dict]) -> dict:
     }
 
 
-def _parse_shodan(data: Optional[dict]) -> dict:
+def _parse_shodan(data: dict | None) -> dict:
     if not data:
         return {}
     return {
@@ -244,7 +244,7 @@ def _parse_shodan(data: Optional[dict]) -> dict:
     }
 
 
-def _parse_otx(data: Optional[dict]) -> dict:
+def _parse_otx(data: dict | None) -> dict:
     if not data:
         return {}
     pulse_info = data.get("pulse_info", {})
@@ -256,7 +256,7 @@ def _parse_otx(data: Optional[dict]) -> dict:
     }
 
 
-def _parse_greynoise(data: Optional[dict]) -> dict:
+def _parse_greynoise(data: dict | None) -> dict:
     if not data:
         return {}
     return {
@@ -282,13 +282,13 @@ class IPThreatScanner:
 
     def __init__(
         self,
-        vt_api_key: Optional[str] = None,
-        abuseipdb_key: Optional[str] = None,
-        shodan_key: Optional[str] = None,
-        otx_key: Optional[str] = None,
-        greynoise_key: Optional[str] = None,
+        vt_api_key: str | None = None,
+        abuseipdb_key: str | None = None,
+        shodan_key: str | None = None,
+        otx_key: str | None = None,
+        greynoise_key: str | None = None,
         threshold: int = 1,
-        cache_path: Optional[Path] = None,
+        cache_path: Path | None = None,
         cache_ttl: int = DEFAULT_CACHE_TTL,
         delay: float = DEFAULT_DELAY,
     ):
@@ -314,7 +314,7 @@ class IPThreatScanner:
         }
         return sources + [label for k, label in source_map.items() if self.keys.get(k)]
 
-    async def scan_ip(self, ip: str) -> Optional[dict]:
+    async def scan_ip(self, ip: str) -> dict | None:
         """Scan a single IP. Returns enriched result dict or None if VT fails."""
         if not _is_valid_ip(ip):
             logger.warning(f"Skipping invalid IP: {ip}")
@@ -339,7 +339,7 @@ class IPThreatScanner:
             if self.keys["greynoise"]:
                 tasks["greynoise"] = _fetch_greynoise(ip, self.keys["greynoise"], client)
 
-            raw = dict(zip(tasks.keys(), await asyncio.gather(*tasks.values())))
+            raw = dict(zip(tasks.keys(), await asyncio.gather(*tasks.values()), strict=True))
 
         result = _parse_vt(raw.get("vt"), self.threshold)
         if result is None:

@@ -1,35 +1,33 @@
 """Export utilities for scan results in multiple formats."""
 
-import json
 import csv
-from datetime import datetime
-from pathlib import Path
-from typing import Optional
+import json
 from io import StringIO
+from pathlib import Path
 
-from core.models import ScanResult
 from core.logger import get_logger
+from core.models import ScanResult
 
 logger = get_logger("core.exporters")
 
 
 class BaseExporter:
     """Base class for result exporters."""
-    
+
     def __init__(self, result: ScanResult):
         """Initialize exporter.
-        
+
         Args:
             result: ScanResult to export
         """
         self.result = result
-    
-    def export(self, output_path: Optional[Path] = None) -> str:
+
+    def export(self, output_path: Path | None = None) -> str:
         """Export result.
-        
+
         Args:
             output_path: Path to save result, or None to return string
-            
+
         Returns:
             Exported content as string
         """
@@ -38,13 +36,13 @@ class BaseExporter:
 
 class JSONExporter(BaseExporter):
     """Export scan results as JSON."""
-    
-    def export(self, output_path: Optional[Path] = None) -> str:
+
+    def export(self, output_path: Path | None = None) -> str:
         """Export as JSON.
-        
+
         Args:
             output_path: Path to save JSON file
-            
+
         Returns:
             JSON string
         """
@@ -67,37 +65,37 @@ class JSONExporter(BaseExporter):
             ],
             "findings_count": len(self.result.findings),
         }
-        
+
         json_str = json.dumps(data, indent=2)
-        
+
         if output_path:
             output_path.parent.mkdir(parents=True, exist_ok=True)
             with open(output_path, 'w') as f:
                 f.write(json_str)
             logger.info(f"Exported JSON to {output_path}")
-        
+
         return json_str
 
 
 class CSVExporter(BaseExporter):
     """Export scan results as CSV."""
-    
-    def export(self, output_path: Optional[Path] = None) -> str:
+
+    def export(self, output_path: Path | None = None) -> str:
         """Export as CSV.
-        
+
         Args:
             output_path: Path to save CSV file
-            
+
         Returns:
             CSV string
         """
         output = StringIO()
-        
+
         fieldnames = ['Title', 'Severity', 'Source', 'Description', 'Data', 'Timestamp']
-        
+
         writer = csv.DictWriter(output, fieldnames=fieldnames)
         writer.writeheader()
-        
+
         for finding in self.result.findings:
             writer.writerow({
                 'Title': finding.title,
@@ -107,27 +105,27 @@ class CSVExporter(BaseExporter):
                 'Data': json.dumps(finding.data),
                 'Timestamp': finding.timestamp.isoformat(),
             })
-        
+
         csv_str = output.getvalue()
-        
+
         if output_path:
             output_path.parent.mkdir(parents=True, exist_ok=True)
             with open(output_path, 'w', newline='') as f:
                 f.write(csv_str)
             logger.info(f"Exported CSV to {output_path}")
-        
+
         return csv_str
 
 
 class HTMLExporter(BaseExporter):
     """Export scan results as HTML report."""
-    
-    def export(self, output_path: Optional[Path] = None) -> str:
+
+    def export(self, output_path: Path | None = None) -> str:
         """Export as HTML.
-        
+
         Args:
             output_path: Path to save HTML file
-            
+
         Returns:
             HTML string
         """
@@ -138,7 +136,7 @@ class HTMLExporter(BaseExporter):
             "low": "#ffff00",
             "info": "#00aa00",
         }
-        
+
         findings_html = ""
         for finding in self.result.findings:
             color = severity_colors.get(finding.severity.value, "#999999")
@@ -153,16 +151,16 @@ class HTMLExporter(BaseExporter):
             <td style="border: 1px solid #ddd; padding: 8px;">{finding.source}</td>
             <td style="border: 1px solid #ddd; padding: 8px;">{finding.description}</td>
         </tr>"""
-        
+
         if not findings_html:
             findings_html = "<tr><td colspan='4' style='text-align: center; padding: 20px;'>No findings detected</td></tr>"
-        
+
         critical_count = sum(1 for f in self.result.findings if f.severity.value == 'critical')
         high_count = sum(1 for f in self.result.findings if f.severity.value == 'high')
         medium_count = sum(1 for f in self.result.findings if f.severity.value == 'medium')
         low_count = sum(1 for f in self.result.findings if f.severity.value == 'low')
         info_count = sum(1 for f in self.result.findings if f.severity.value == 'info')
-        
+
         html = f"""<!DOCTYPE html>
 <html>
 <head>
@@ -225,7 +223,7 @@ class HTMLExporter(BaseExporter):
     <div class="container">
         <h1>Security Suite Scan Report</h1>
         <p><strong>Target:</strong> {self.result.target.value} | <strong>Module:</strong> {self.result.module}</p>
-        
+
         <h2>Summary</h2>
         <div class="summary">
             <div class="summary-card critical"><strong>{critical_count}</strong><br>Critical</div>
@@ -234,7 +232,7 @@ class HTMLExporter(BaseExporter):
             <div class="summary-card low"><strong>{low_count}</strong><br>Low</div>
             <div class="summary-card info"><strong>{info_count}</strong><br>Info</div>
         </div>
-        
+
         <h2>Findings</h2>
         <table>
             <tr>
@@ -248,25 +246,25 @@ class HTMLExporter(BaseExporter):
     </div>
 </body>
 </html>"""
-        
+
         if output_path:
             output_path.parent.mkdir(parents=True, exist_ok=True)
             with open(output_path, 'w') as f:
                 f.write(html)
             logger.info(f"Exported HTML to {output_path}")
-        
+
         return html
 
 
 class MarkdownExporter(BaseExporter):
     """Export scan results as Markdown."""
-    
-    def export(self, output_path: Optional[Path] = None) -> str:
+
+    def export(self, output_path: Path | None = None) -> str:
         """Export as Markdown.
-        
+
         Args:
             output_path: Path to save Markdown file
-            
+
         Returns:
             Markdown string
         """
@@ -289,7 +287,7 @@ class MarkdownExporter(BaseExporter):
 ## Findings
 
 """
-        
+
         if not self.result.findings:
             md += "✅ No findings detected\n"
         else:
@@ -300,28 +298,28 @@ class MarkdownExporter(BaseExporter):
 - **Description:** {finding.description}
 
 """
-        
+
         if output_path:
             output_path.parent.mkdir(parents=True, exist_ok=True)
             with open(output_path, 'w') as f:
                 f.write(md)
             logger.info(f"Exported Markdown to {output_path}")
-        
+
         return md
 
 
 def export_result(
     result: ScanResult,
     format: str = "json",
-    output_path: Optional[Path] = None,
+    output_path: Path | None = None,
 ) -> str:
     """Export scan result in specified format.
-    
+
     Args:
         result: ScanResult to export
         format: Export format (json, csv, html, markdown)
         output_path: Path to save file
-        
+
     Returns:
         Exported content as string
     """
@@ -332,9 +330,9 @@ def export_result(
         "markdown": MarkdownExporter,
         "md": MarkdownExporter,
     }
-    
+
     if format not in exporters:
         raise ValueError(f"Unknown export format: {format}. Available: {list(exporters.keys())}")
-    
+
     exporter = exporters[format](result)
     return exporter.export(output_path)

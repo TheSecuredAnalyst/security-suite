@@ -1,14 +1,12 @@
 """Phishing server for hosting landing pages and tracking."""
 
-import asyncio
+from collections.abc import Callable
 from datetime import datetime, timezone
-from typing import Optional, Callable
-from pathlib import Path
 
 from aiohttp import web
 
 from core.logger import get_logger
-from modules.phishing.campaign import PhishingCampaign, CampaignManager
+from modules.phishing.campaign import CampaignManager
 from modules.phishing.templates import TemplateManager
 
 
@@ -19,16 +17,16 @@ class PhishingServer:
         self,
         host: str = "0.0.0.0",
         port: int = 8080,
-        campaign_manager: Optional[CampaignManager] = None,
-        template_manager: Optional[TemplateManager] = None,
+        campaign_manager: CampaignManager | None = None,
+        template_manager: TemplateManager | None = None,
     ):
         self.host = host
         self.port = port
         self.logger = get_logger("phishing.server")
         self.campaign_manager = campaign_manager or CampaignManager()
         self.template_manager = template_manager or TemplateManager()
-        self.app: Optional[web.Application] = None
-        self.runner: Optional[web.AppRunner] = None
+        self.app: web.Application | None = None
+        self.runner: web.AppRunner | None = None
         self._on_click_callbacks: list[Callable] = []
         self._on_submit_callbacks: list[Callable] = []
 

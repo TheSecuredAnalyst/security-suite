@@ -1,13 +1,12 @@
 """Nuclei vulnerability scanner integration."""
 
 import asyncio
-import shutil
 import json
-import tempfile
 import os
-from typing import Optional
+import shutil
+import tempfile
 
-from core.models import Target, ScanResult, Severity
+from core.models import ScanResult, Severity, Target
 from modules.webscanner.base import WebScannerModule
 
 
@@ -27,9 +26,9 @@ class NucleiScanner(WebScannerModule):
 
     def __init__(
         self,
-        templates: Optional[list[str]] = None,
-        severity: Optional[list[str]] = None,
-        tags: Optional[list[str]] = None,
+        templates: list[str] | None = None,
+        severity: list[str] | None = None,
+        tags: list[str] | None = None,
     ):
         super().__init__()
         self.templates = templates
@@ -87,7 +86,7 @@ class NucleiScanner(WebScannerModule):
             # Parse results
             findings = []
             if os.path.exists(output_file) and os.path.getsize(output_file) > 0:
-                with open(output_file, "r") as f:
+                with open(output_file) as f:
                     for line in f:
                         try:
                             finding = json.loads(line.strip())

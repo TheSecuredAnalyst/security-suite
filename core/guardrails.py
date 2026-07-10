@@ -21,7 +21,6 @@ import uuid
 from collections import defaultdict
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta, timezone
-from typing import Optional
 
 from core.logger import get_logger
 
@@ -146,7 +145,7 @@ class GuardrailsEngine:
     """
 
     def __init__(self) -> None:
-        self._session: Optional[EngagementSession] = None
+        self._session: EngagementSession | None = None
         self._rate_tracker: dict[str, list[float]] = defaultdict(list)
         self._audit_log: list[AuditEntry] = []
 
@@ -211,7 +210,7 @@ class GuardrailsEngine:
             logger.info(f"Engagement session ended: {self._session.session_id}")
             self._session = None
 
-    def active_session(self) -> Optional[EngagementSession]:
+    def active_session(self) -> EngagementSession | None:
         return self._session
 
     # ── Gate methods ───────────────────────────────────────────────────────────
@@ -253,7 +252,7 @@ class GuardrailsEngine:
         if self._session.authorized_modules:
             if not any(module_name.startswith(m) for m in self._session.authorized_modules):
                 return self._deny(target, module_name,
-                    f"Module not in session's authorized_modules list")
+                    "Module not in session's authorized_modules list")
 
         # 6 — Live exploitation requires explicit session flag
         if live and not self._session.allow_live_exploitation:
@@ -342,7 +341,8 @@ class GuardrailsEngine:
         ]
 
     def export_audit_log(self, path: str) -> str:
-        import json, os  # noqa: PLC0415
+        import json
+        import os  # noqa: PLC0415
         os.makedirs(os.path.dirname(path) or ".", exist_ok=True)
         with open(path, "w") as f:
             json.dump(self.get_audit_log(), f, indent=2)

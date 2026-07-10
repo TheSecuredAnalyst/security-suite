@@ -1,15 +1,14 @@
 """Phishing campaign management."""
 
-import uuid
 import json
-from datetime import datetime
+import uuid
 from dataclasses import dataclass, field
-from typing import Optional
-from pathlib import Path
+from datetime import datetime, timezone
 from enum import Enum
+from pathlib import Path
 
-from core.logger import get_logger
 from core.config import get_settings
+from core.logger import get_logger
 
 
 class CampaignStatus(str, Enum):
@@ -32,10 +31,10 @@ class CampaignTarget:
     email_opened: bool = False
     link_clicked: bool = False
     credentials_submitted: bool = False
-    sent_at: Optional[datetime] = None
-    opened_at: Optional[datetime] = None
-    clicked_at: Optional[datetime] = None
-    submitted_at: Optional[datetime] = None
+    sent_at: datetime | None = None
+    opened_at: datetime | None = None
+    clicked_at: datetime | None = None
+    submitted_at: datetime | None = None
 
 
 @dataclass
@@ -51,9 +50,9 @@ class PhishingCampaign:
     sender_name: str = ""
     phishing_url: str = ""
     targets: list[CampaignTarget] = field(default_factory=list)
-    created_at: datetime = field(default_factory=datetime.utcnow)
-    started_at: Optional[datetime] = None
-    completed_at: Optional[datetime] = None
+    created_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
+    started_at: datetime | None = None
+    completed_at: datetime | None = None
     custom_variables: dict = field(default_factory=dict)
 
     @property
@@ -126,7 +125,7 @@ class PhishingCampaign:
 
         return count
 
-    def get_target_by_tracking_id(self, tracking_id: str) -> Optional[CampaignTarget]:
+    def get_target_by_tracking_id(self, tracking_id: str) -> CampaignTarget | None:
         """Get target by tracking ID."""
         for target in self.targets:
             if target.tracking_id == tracking_id:
@@ -219,7 +218,7 @@ class PhishingCampaign:
 class CampaignManager:
     """Manage phishing campaigns."""
 
-    def __init__(self, data_dir: Optional[Path] = None):
+    def __init__(self, data_dir: Path | None = None):
         self.logger = get_logger("phishing.campaigns")
         self.data_dir = data_dir or (get_settings().data_dir / "campaigns")
         self.data_dir.mkdir(parents=True, exist_ok=True)
@@ -243,7 +242,7 @@ class CampaignManager:
             json.dump(campaign.to_dict(), f, indent=2)
         self.campaigns[campaign.id] = campaign
 
-    def get_campaign(self, campaign_id: str) -> Optional[PhishingCampaign]:
+    def get_campaign(self, campaign_id: str) -> PhishingCampaign | None:
         """Get campaign by ID."""
         return self.campaigns.get(campaign_id)
 

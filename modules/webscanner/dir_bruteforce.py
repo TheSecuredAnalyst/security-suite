@@ -1,11 +1,10 @@
 """Directory and file bruteforce scanner."""
 
 import asyncio
-from typing import Optional
 
 from core import load_wordlist
-from core.models import Target, ScanResult, Severity
 from core.http_client import HTTPClient
+from core.models import ScanResult, Severity, Target
 from modules.webscanner.base import WebScannerModule
 
 
@@ -51,10 +50,10 @@ class DirectoryBruteforcer(WebScannerModule):
 
     def __init__(
         self,
-        wordlist: Optional[list[str]] = None,
-        extensions: Optional[list[str]] = None,
+        wordlist: list[str] | None = None,
+        extensions: list[str] | None = None,
         max_concurrent: int = 20,
-        seclists_path: Optional[str] = None,
+        seclists_path: str | None = None,
     ):
         super().__init__()
         self.wordlist = wordlist or load_wordlist(
@@ -76,7 +75,7 @@ class DirectoryBruteforcer(WebScannerModule):
         sensitive = []
         semaphore = asyncio.Semaphore(self.max_concurrent)
 
-        async def check_path(path: str) -> Optional[dict]:
+        async def check_path(path: str) -> dict | None:
             async with semaphore:
                 url = f"{base_url}/{path}"
                 try:

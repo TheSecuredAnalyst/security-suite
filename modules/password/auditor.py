@@ -13,12 +13,11 @@ import math
 import os
 import re
 import string
-from dataclasses import dataclass, field, asdict
+from dataclasses import asdict, dataclass, field
 from enum import Enum
-from typing import Optional
 
 from core.logger import get_logger
-from core.models import Target, ScanResult, Severity
+from core.models import ScanResult, Severity, Target
 
 logger = get_logger("password.auditor")
 

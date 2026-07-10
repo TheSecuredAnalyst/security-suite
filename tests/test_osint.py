@@ -1,9 +1,10 @@
 """Tests for OSINT modules."""
 
-import pytest
-from unittest.mock import AsyncMock, patch, MagicMock
+from unittest.mock import MagicMock, patch
 
-from core.models import Target, Severity
+import pytest
+
+from core.models import Target
 
 
 class TestDNSEnumerator:

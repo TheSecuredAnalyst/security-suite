@@ -1,12 +1,11 @@
 """SQL Injection vulnerability scanner."""
 
 import re
-from typing import Optional
-from urllib.parse import urlencode, urlparse, parse_qs, urlunparse
+from urllib.parse import parse_qs, urlencode, urlparse, urlunparse
 
 from core import load_wordlist
-from core.models import Target, ScanResult, Severity
 from core.http_client import HTTPClient
+from core.models import ScanResult, Severity, Target
 from modules.webscanner.base import WebScannerModule
 
 
@@ -76,8 +75,8 @@ class SQLiScanner(WebScannerModule):
 
     def __init__(
         self,
-        custom_payloads: Optional[list[str]] = None,
-        seclists_path: Optional[str] = None,
+        custom_payloads: list[str] | None = None,
+        seclists_path: str | None = None,
     ):
         super().__init__()
         self.payloads = custom_payloads or load_wordlist(
@@ -188,7 +187,7 @@ class SQLiScanner(WebScannerModule):
             parsed.params, new_query, parsed.fragment
         ))
 
-    def _check_sql_errors(self, html: str) -> Optional[str]:
+    def _check_sql_errors(self, html: str) -> str | None:
         """Check for SQL error messages."""
         for pattern in self.error_patterns:
             match = pattern.search(html)

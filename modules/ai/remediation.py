@@ -1,10 +1,9 @@
 """Remediation knowledge base and guidance engine."""
 
 from dataclasses import dataclass, field
-from typing import Optional
 
-from core.models import Finding, Severity
 from core.logger import get_logger
+from core.models import Finding
 
 
 @dataclass
@@ -13,8 +12,8 @@ class RemediationStep:
     order: int
     action: str
     details: str
-    code_example: Optional[str] = None
-    verification: Optional[str] = None
+    code_example: str | None = None
+    verification: str | None = None
 
 
 @dataclass
@@ -314,7 +313,7 @@ ufw enable""",
     def __init__(self):
         self.logger = get_logger("ai.remediation")
 
-    def get_remediation(self, finding: Finding) -> Optional[RemediationGuide]:
+    def get_remediation(self, finding: Finding) -> RemediationGuide | None:
         """Get remediation guide for a finding.
 
         Args:

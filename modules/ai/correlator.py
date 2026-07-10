@@ -1,11 +1,10 @@
 """Finding correlation engine."""
 
-from dataclasses import dataclass, field
-from typing import Optional
 from collections import defaultdict
+from dataclasses import dataclass, field
 
-from core.models import ScanResult, Finding, Severity, Target
 from core.logger import get_logger
+from core.models import Finding, ScanResult, Severity
 
 
 @dataclass
@@ -13,7 +12,7 @@ class CorrelatedFinding:
     """A finding with correlation data."""
     finding: Finding
     related_findings: list[Finding] = field(default_factory=list)
-    attack_chain_position: Optional[int] = None
+    attack_chain_position: int | None = None
     combined_risk_score: float = 0.0
     tags: list[str] = field(default_factory=list)
 
@@ -239,7 +238,7 @@ class FindingCorrelator:
         """Identify potential attack chains from findings."""
         chains = []
 
-        for pattern_id, pattern in self.ATTACK_PATTERNS.items():
+        for pattern in self.ATTACK_PATTERNS.values():
             chain_findings = []
             stages_matched = 0
 

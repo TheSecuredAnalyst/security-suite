@@ -26,17 +26,16 @@ import json
 import os
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
-from typing import Optional
 
-from core.db import upsert_run, upsert_finding, insert_remediation, list_remediations
-from core.guardrails import guardrails, EngagementSession
+from core.db import insert_remediation, upsert_finding, upsert_run
+from core.guardrails import guardrails
 from core.logger import get_logger
-from core.models import Target, Severity
-from modules.exploit_engine.runner import ExploitRunner, ExploitResult
+from core.models import Target
+from modules.exploit_engine.runner import ExploitResult, ExploitRunner
 from modules.mitre.mapper import MITREMapper
-from modules.remediation.ai_engine import RemediationAI, RemediationScript, MAX_RETRIES
+from modules.remediation.ai_engine import MAX_RETRIES, RemediationAI, RemediationScript
 from modules.remediation.hardener import AutoHardener, HardenResult
-from modules.vulnscan import NetworkScanner, CVELookup
+from modules.vulnscan import CVELookup, NetworkScanner
 from modules.vulnscan.risk_scorer import RiskScorer
 
 logger = get_logger("orchestrator.loop")
@@ -59,8 +58,8 @@ class LoopFinding:
     attack_tags: list[dict] = field(default_factory=list)
     already_exploited: bool = False         # Threat hunt result
     hunt_evidence: list[str] = field(default_factory=list)
-    remediation: Optional[RemediationScript] = None
-    harden_result: Optional[HardenResult] = None
+    remediation: RemediationScript | None = None
+    harden_result: HardenResult | None = None
     verified_closed: bool = False
 
 
@@ -593,7 +592,7 @@ class RedBlueOrchestrator:
                 continue
             try:
                 # Apply immediate mitigation first, then permanent fix
-                h1 = await self._hardener.apply(
+                await self._hardener.apply(
                     finding.remediation, dry_run=False, phase="immediate_mitigation"
                 )
                 h2 = await self._hardener.apply(

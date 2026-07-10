@@ -1,11 +1,9 @@
 """Generic webhook exporter for notifications and integrations."""
 
-import json
-from typing import Optional, Callable
 
 import httpx
 
-from modules.siem.base import SIEMExporter, SIEMEvent
+from modules.siem.base import SIEMEvent, SIEMExporter
 
 
 class WebhookExporter(SIEMExporter):
@@ -15,8 +13,8 @@ class WebhookExporter(SIEMExporter):
         self,
         url: str,
         method: str = "POST",
-        headers: Optional[dict] = None,
-        auth_token: Optional[str] = None,
+        headers: dict | None = None,
+        auth_token: str | None = None,
         auth_header: str = "Authorization",
         format: str = "json",  # json, slack, discord, pagerduty
         min_severity: str = "low",  # Only send events at or above this severity

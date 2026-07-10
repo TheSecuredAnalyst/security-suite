@@ -1,7 +1,6 @@
 """Security standards and compliance frameworks."""
 
 from dataclasses import dataclass, field
-from typing import Optional
 from enum import Enum
 
 
@@ -20,7 +19,7 @@ class ControlCheck:
     description: str
     category: str
     severity: str  # critical, high, medium, low
-    check_function: Optional[str] = None  # Name of function to run
+    check_function: str | None = None  # Name of function to run
     remediation: str = ""
     references: list[str] = field(default_factory=list)
 
@@ -34,7 +33,7 @@ class SecurityStandard:
     description: str
     controls: list[ControlCheck] = field(default_factory=list)
 
-    def get_control(self, control_id: str) -> Optional[ControlCheck]:
+    def get_control(self, control_id: str) -> ControlCheck | None:
         for control in self.controls:
             if control.id == control_id:
                 return control

@@ -1,15 +1,13 @@
 """Scan endpoints."""
 
 import uuid
-import asyncio
-from datetime import datetime, timedelta, timezone
-from typing import Optional
+from datetime import datetime, timezone
 
-from fastapi import APIRouter, HTTPException, Query, BackgroundTasks
+from fastapi import APIRouter, BackgroundTasks, HTTPException, Query
 
-from api.models import ScanRequest, ScanResponse, ScanListResponse, FindingResponse
-from core.models import Target, Severity
+from api.models import FindingResponse, ScanListResponse, ScanRequest, ScanResponse
 from core.logger import get_logger
+from core.models import Target
 
 logger = get_logger("api.scans")
 
@@ -25,16 +23,16 @@ async def create_scan(
     background_tasks: BackgroundTasks,
 ) -> ScanResponse:
     """Create a new scan.
-    
+
     Args:
         request: Scan configuration
         background_tasks: Background task queue
-        
+
     Returns:
         ScanResponse with scan details
     """
     scan_id = str(uuid.uuid4())
-    
+
     scan = {
         "id": scan_id,
         "target": request.target,
@@ -47,9 +45,9 @@ async def create_scan(
         "dry_run": request.dry_run,
         "options": request.options,
     }
-    
+
     scans_db[scan_id] = scan
-    
+
     # Schedule scan execution
     if not request.dry_run:
         background_tasks.add_task(execute_scan, scan_id)
@@ -57,7 +55,7 @@ async def create_scan(
         scan["status"] = "completed"
         scan["completed_at"] = datetime.now(timezone.utc)
         logger.info(f"DRY-RUN scan {scan_id} for {request.target}")
-    
+
     return ScanResponse(
         id=scan["id"],
         target=scan["target"],
@@ -70,21 +68,21 @@ async def create_scan(
 @router.get("/{scan_id}", response_model=ScanResponse)
 async def get_scan(scan_id: str) -> ScanResponse:
     """Get scan details by ID.
-    
+
     Args:
         scan_id: Scan identifier
-        
+
     Returns:
         ScanResponse with scan details
-        
+
     Raises:
         HTTPException: If scan not found
     """
     if scan_id not in scans_db:
         raise HTTPException(status_code=404, detail="Scan not found")
-    
+
     scan = scans_db[scan_id]
-    
+
     findings = [
         FindingResponse(
             id=f["id"],
@@ -97,7 +95,7 @@ async def get_scan(scan_id: str) -> ScanResponse:
         )
         for f in scan["findings"]
     ]
-    
+
     return ScanResponse(
         id=scan["id"],
         target=scan["target"],
@@ -117,22 +115,22 @@ async def list_scans(
     page_size: int = Query(10, ge=1, le=100),
 ) -> ScanListResponse:
     """List all scans with pagination.
-    
+
     Args:
         page: Page number (1-indexed)
         page_size: Items per page
-        
+
     Returns:
         ScanListResponse with paginated results
     """
     all_scans = list(scans_db.values())
     total = len(all_scans)
-    
+
     start = (page - 1) * page_size
     end = start + page_size
-    
+
     paginated_scans = all_scans[start:end]
-    
+
     scan_responses = [
         ScanResponse(
             id=s["id"],
@@ -146,7 +144,7 @@ async def list_scans(
         )
         for s in paginated_scans
     ]
-    
+
     return ScanListResponse(
         total=total,
         page=page,
@@ -158,26 +156,26 @@ async def list_scans(
 @router.delete("/{scan_id}")
 async def delete_scan(scan_id: str) -> dict:
     """Delete a scan.
-    
+
     Args:
         scan_id: Scan identifier
-        
+
     Returns:
         Confirmation message
-        
+
     Raises:
         HTTPException: If scan not found
     """
     if scan_id not in scans_db:
         raise HTTPException(status_code=404, detail="Scan not found")
-    
+
     del scans_db[scan_id]
     return {"message": f"Scan {scan_id} deleted"}
 
 
 async def execute_scan(scan_id: str) -> None:
     """Execute a scan in the background.
-    
+
     Args:
         scan_id: Scan identifier
     """
@@ -185,18 +183,26 @@ async def execute_scan(scan_id: str) -> None:
         scan = scans_db[scan_id]
         scan["status"] = "running"
         scan["started_at"] = datetime.now(timezone.utc)
-        
+
         logger.info(f"Starting scan {scan_id} for target {scan['target']}")
-        
+
         # Import modules dynamically
         from modules.osint import (
-            DNSEnumerator, WhoisLookup, SubdomainScanner,
-            HeaderAnalyzer, TechDetector, PortScanner
+            DNSEnumerator,
+            HeaderAnalyzer,
+            PortScanner,
+            SubdomainScanner,
+            TechDetector,
+            WhoisLookup,
         )
         from modules.webscanner import (
-            WebCrawler, XSSScanner, SQLiScanner, DirectoryBruteforcer, SSLAnalyzer
+            DirectoryBruteforcer,
+            SQLiScanner,
+            SSLAnalyzer,
+            WebCrawler,
+            XSSScanner,
         )
-        
+
         target = Target.from_string(scan["target"])
         module_map = {
             "dns": DNSEnumerator(),
@@ -211,7 +217,7 @@ async def execute_scan(scan_id: str) -> None:
             "dirs": DirectoryBruteforcer(),
             "ssl": SSLAnalyzer(),
         }
-        
+
         # Run selected modules
         for module_name in scan["modules"]:
             if module_name in module_map:
@@ -221,11 +227,11 @@ async def execute_scan(scan_id: str) -> None:
                     logger.info(f"Module {module_name} found {len(result.findings)} findings")
                 except Exception as e:
                     logger.error(f"Error running module {module_name}: {e}")
-        
+
         scan["status"] = "completed"
         scan["completed_at"] = datetime.now(timezone.utc)
         logger.info(f"Scan {scan_id} completed with {len(scan['findings'])} findings")
-        
+
     except Exception as e:
         scan = scans_db[scan_id]
         scan["status"] = "failed"

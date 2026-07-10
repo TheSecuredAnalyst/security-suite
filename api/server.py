@@ -2,12 +2,11 @@
 
 import os
 
-from fastapi import FastAPI, Request, HTTPException
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse
 
-from api.routers import scans, results, modules, health
-
+from api.routers import health, modules, results, scans
 
 _SWAGGER_HTML = """<!DOCTYPE html>
 <html>

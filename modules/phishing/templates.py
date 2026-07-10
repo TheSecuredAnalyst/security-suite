@@ -1,12 +1,11 @@
 """Phishing email and landing page templates."""
 
-from dataclasses import dataclass, field
-from typing import Optional
-from pathlib import Path
 import json
+from dataclasses import dataclass, field
+from pathlib import Path
 
-from core.logger import get_logger
 from core.config import get_settings
+from core.logger import get_logger
 
 
 @dataclass
@@ -263,7 +262,7 @@ Thank you for your business.
         ),
     ]
 
-    def __init__(self, custom_templates_dir: Optional[Path] = None):
+    def __init__(self, custom_templates_dir: Path | None = None):
         self.logger = get_logger("phishing.templates")
         self.templates_dir = custom_templates_dir or (get_settings().data_dir / "templates")
         self.templates_dir.mkdir(parents=True, exist_ok=True)
@@ -301,11 +300,11 @@ Thank you for your business.
             except Exception as e:
                 self.logger.error(f"Failed to load template {json_file}: {e}")
 
-    def get_email_template(self, template_id: str) -> Optional[EmailTemplate]:
+    def get_email_template(self, template_id: str) -> EmailTemplate | None:
         """Get email template by ID."""
         return self.email_templates.get(template_id)
 
-    def get_landing_template(self, template_id: str) -> Optional[LandingPageTemplate]:
+    def get_landing_template(self, template_id: str) -> LandingPageTemplate | None:
         """Get landing page template by ID."""
         return self.landing_templates.get(template_id)
 

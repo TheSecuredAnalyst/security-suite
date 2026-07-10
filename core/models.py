@@ -2,7 +2,7 @@
 
 from datetime import datetime, timezone
 from enum import Enum
-from typing import Any, Optional
+from typing import Any
 
 from pydantic import BaseModel, Field
 
@@ -65,7 +65,7 @@ class ScanResult(BaseModel):
     module: str = Field(..., description="Module that performed the scan")
     success: bool = True
     started_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
-    completed_at: Optional[datetime] = None
+    completed_at: datetime | None = None
     findings: list[Finding] = Field(default_factory=list)
     raw_data: dict[str, Any] = Field(default_factory=dict)
     errors: list[str] = Field(default_factory=list)
@@ -75,8 +75,8 @@ class ScanResult(BaseModel):
         title: str,
         description: str,
         severity: Severity = Severity.INFO,
-        data: Optional[dict[str, Any]] = None,
-        references: Optional[list[str]] = None,
+        data: dict[str, Any] | None = None,
+        references: list[str] | None = None,
     ) -> Finding:
         """Add a finding to the result."""
         finding = Finding(
@@ -95,7 +95,7 @@ class ScanResult(BaseModel):
         self.completed_at = datetime.now(timezone.utc)
 
     @property
-    def duration_seconds(self) -> Optional[float]:
+    def duration_seconds(self) -> float | None:
         """Get scan duration in seconds."""
         if self.completed_at and self.started_at:
             return (self.completed_at - self.started_at).total_seconds()

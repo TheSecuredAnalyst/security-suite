@@ -21,7 +21,6 @@ import asyncio
 import os
 import sys
 from datetime import datetime, timezone
-from typing import Optional
 
 # Ensure project root is on sys.path when run directly
 _HERE = os.path.dirname(os.path.abspath(__file__))
@@ -29,13 +28,19 @@ _ROOT = os.path.dirname(_HERE)
 if _ROOT not in sys.path:
     sys.path.insert(0, _ROOT)
 
-from core.db import (
-    get_stats, get_risk_trend, get_exposure_trend,
-    list_runs, get_run, list_findings, list_confirmed_findings,
+from pydantic import BaseModel  # noqa: E402
+
+from core.db import (  # noqa: E402
+    get_exposure_trend,
+    get_risk_trend,
+    get_run,
+    get_stats,
+    list_confirmed_findings,
+    list_findings,
     list_remediations,
+    list_runs,
 )
-from core.logger import get_logger
-from pydantic import BaseModel
+from core.logger import get_logger  # noqa: E402
 
 logger = get_logger("dashboard")
 
@@ -52,7 +57,7 @@ class RunRequest(BaseModel):
 
 def _create_app():
     from fastapi import FastAPI, HTTPException
-    from fastapi.responses import HTMLResponse, JSONResponse
+    from fastapi.responses import HTMLResponse
 
     app = FastAPI(title="SecSuite Dashboard", version="2.0.0")
 
@@ -626,7 +631,7 @@ class DashboardApp:
         try:
             import uvicorn
         except ImportError:
-            raise ImportError("uvicorn not installed. Run: pip install uvicorn")
+            raise ImportError("uvicorn not installed. Run: pip install uvicorn") from None
 
         app = _create_app()
         logger.info(f"Dashboard starting at http://{self.host}:{self.port}")

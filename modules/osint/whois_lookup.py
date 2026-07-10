@@ -2,7 +2,7 @@
 
 import whois
 
-from core.models import Target, ScanResult, Severity
+from core.models import ScanResult, Severity, Target
 from modules.osint.base import OSINTModule
 
 

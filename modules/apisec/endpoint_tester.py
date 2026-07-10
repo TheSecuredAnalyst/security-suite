@@ -1,17 +1,15 @@
 """API endpoint security tester."""
 
-import asyncio
 import re
 from dataclasses import dataclass, field
-from typing import Optional
 from urllib.parse import urljoin
 
 import httpx
 
 from core import load_wordlist
-from core.models import Target, ScanResult, Finding, Severity
 from core.logger import get_logger
-from modules.apisec.openapi_parser import ParsedAPI, APIEndpoint
+from core.models import Finding, ScanResult, Severity, Target
+from modules.apisec.openapi_parser import APIEndpoint, ParsedAPI
 
 
 @dataclass
@@ -19,9 +17,9 @@ class EndpointTestResult:
     """Result of testing an endpoint."""
     endpoint: APIEndpoint
     findings: list[Finding] = field(default_factory=list)
-    response_code: Optional[int] = None
+    response_code: int | None = None
     response_time: float = 0.0
-    error: Optional[str] = None
+    error: str | None = None
 
 
 class APIEndpointTester:
@@ -82,9 +80,9 @@ class APIEndpointTester:
     def __init__(
         self,
         timeout: float = 10.0,
-        auth_header: Optional[str] = None,
-        auth_token: Optional[str] = None,
-        seclists_path: Optional[str] = None,
+        auth_header: str | None = None,
+        auth_token: str | None = None,
+        seclists_path: str | None = None,
     ):
         self.logger = get_logger("apisec.endpoint_tester")
         self.timeout = timeout
@@ -218,8 +216,8 @@ class APIEndpointTester:
         method: str,
         url: str,
         headers: dict,
-        params: Optional[dict] = None,
-        json_data: Optional[dict] = None,
+        params: dict | None = None,
+        json_data: dict | None = None,
     ) -> httpx.Response:
         """Make HTTP request."""
         return await client.request(
@@ -400,7 +398,7 @@ class APIEndpointTester:
         param_name: str,
         payload: str,
         injection_type: str,
-    ) -> Optional[Finding]:
+    ) -> Finding | None:
         """Test single injection payload."""
         url = urljoin(base_url, endpoint.path)
 

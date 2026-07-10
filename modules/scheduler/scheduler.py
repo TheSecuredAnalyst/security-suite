@@ -2,14 +2,13 @@
 
 import asyncio
 import uuid
+from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
-from typing import Optional, Callable, Awaitable, Any
 from enum import Enum
-import re
 
-from core.models import Target, ScanResult
 from core.logger import get_logger
+from core.models import ScanResult
 
 
 class ScheduleFrequency(str, Enum):
@@ -30,13 +29,13 @@ class ScheduledScan:
     target: str
     modules: list[str]
     frequency: ScheduleFrequency
-    cron_expression: Optional[str] = None  # For custom frequency
+    cron_expression: str | None = None  # For custom frequency
     enabled: bool = True
     created_at: datetime = field(default_factory=datetime.now)
-    last_run: Optional[datetime] = None
-    next_run: Optional[datetime] = None
+    last_run: datetime | None = None
+    next_run: datetime | None = None
     run_count: int = 0
-    notify_webhook: Optional[str] = None
+    notify_webhook: str | None = None
     notify_on_findings: bool = True
     siem_export: bool = False
     tags: list[str] = field(default_factory=list)
@@ -90,17 +89,17 @@ class ScanJob:
     schedule_id: str
     target: str
     started_at: datetime
-    completed_at: Optional[datetime] = None
+    completed_at: datetime | None = None
     status: str = "running"  # running, completed, failed
     results: list[ScanResult] = field(default_factory=list)
-    error: Optional[str] = None
+    error: str | None = None
     findings_count: int = 0
 
 
 class ScanScheduler:
     """Scheduler for recurring security scans."""
 
-    def __init__(self, storage_path: Optional[str] = None):
+    def __init__(self, storage_path: str | None = None):
         """Initialize scheduler.
 
         Args:
@@ -110,9 +109,9 @@ class ScanScheduler:
         self.schedules: dict[str, ScheduledScan] = {}
         self.jobs: dict[str, ScanJob] = {}
         self._running = False
-        self._task: Optional[asyncio.Task] = None
-        self._scan_callback: Optional[Callable] = None
-        self._notify_callback: Optional[Callable] = None
+        self._task: asyncio.Task | None = None
+        self._scan_callback: Callable | None = None
+        self._notify_callback: Callable | None = None
         self._storage_path = storage_path
 
     def set_scan_callback(
@@ -141,9 +140,9 @@ class ScanScheduler:
         target: str,
         modules: list[str],
         frequency: ScheduleFrequency,
-        cron_expression: Optional[str] = None,
-        notify_webhook: Optional[str] = None,
-        tags: Optional[list[str]] = None,
+        cron_expression: str | None = None,
+        notify_webhook: str | None = None,
+        tags: list[str] | None = None,
     ) -> ScheduledScan:
         """Create a new scheduled scan.
 
@@ -180,7 +179,7 @@ class ScanScheduler:
 
         return schedule
 
-    def get_schedule(self, schedule_id: str) -> Optional[ScheduledScan]:
+    def get_schedule(self, schedule_id: str) -> ScheduledScan | None:
         """Get schedule by ID."""
         return self.schedules.get(schedule_id)
 
@@ -191,7 +190,7 @@ class ScanScheduler:
             schedules = [s for s in schedules if s.enabled]
         return sorted(schedules, key=lambda s: s.next_run or datetime.max)
 
-    def update_schedule(self, schedule_id: str, **kwargs) -> Optional[ScheduledScan]:
+    def update_schedule(self, schedule_id: str, **kwargs) -> ScheduledScan | None:
         """Update schedule properties."""
         schedule = self.schedules.get(schedule_id)
         if not schedule:
@@ -233,7 +232,7 @@ class ScanScheduler:
             return True
         return False
 
-    async def run_now(self, schedule_id: str) -> Optional[ScanJob]:
+    async def run_now(self, schedule_id: str) -> ScanJob | None:
         """Run a scheduled scan immediately.
 
         Args:
@@ -405,14 +404,14 @@ class ScanScheduler:
         except ValueError:
             return now + timedelta(days=1)
 
-    def get_job(self, job_id: str) -> Optional[ScanJob]:
+    def get_job(self, job_id: str) -> ScanJob | None:
         """Get job by ID."""
         return self.jobs.get(job_id)
 
     def list_jobs(
         self,
-        schedule_id: Optional[str] = None,
-        status: Optional[str] = None,
+        schedule_id: str | None = None,
+        status: str | None = None,
         limit: int = 50,
     ) -> list[ScanJob]:
         """List scan jobs."""

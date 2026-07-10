@@ -15,10 +15,10 @@ import json
 import os
 import sqlite3
 import threading
+from collections.abc import Generator
 from contextlib import contextmanager
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Generator, Optional
 
 from core.logger import get_logger
 
@@ -167,7 +167,7 @@ def upsert_run(run_id: str, data: dict) -> None:
         conn.execute(sql, vals)
 
 
-def get_run(run_id: str) -> Optional[dict]:
+def get_run(run_id: str) -> dict | None:
     with get_db() as conn:
         row = conn.execute("SELECT * FROM runs WHERE id=?", (run_id,)).fetchone()
         return dict(row) if row else None

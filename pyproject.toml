@@ -83,6 +83,15 @@ target-version = "py310"
 
 [tool.ruff.lint]
 select = ["E", "F", "W", "I", "N", "UP", "B", "C4"]
+ignore = [
+    # Line length is owned by the formatter; long URLs/payload strings are fine.
+    "E501",
+    # Local UPPER_CASE lookup tables are intentional constants, not variables.
+    "N806",
+]
+
+[tool.ruff.format]
+docstring-code-format = true
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"

@@ -14,9 +14,8 @@ from __future__ import annotations
 
 import argparse
 import asyncio
-import json
-import sys
 import os
+import sys
 
 # Path setup — works from project root or scripts/
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))

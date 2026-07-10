@@ -2,7 +2,6 @@
 
 import uuid
 from datetime import datetime, timezone
-from typing import Optional
 
 from fastapi import APIRouter, BackgroundTasks, HTTPException
 from pydantic import BaseModel, Field
@@ -13,8 +12,7 @@ logger = get_logger("api.apisec")
 router = APIRouter()
 
 # Shared with scans router so results are retrievable via GET /api/v1/scans/{id}
-from api.routers.scans import scans_db
-
+from api.routers.scans import scans_db  # noqa: E402
 
 # ---------------------------------------------------------------------------
 # Request / response models
@@ -26,7 +24,7 @@ class APISecScanRequest(BaseModel):
         default=["endpoints", "auth", "fuzzer"],
         description="Which apisec modules to run: endpoints, auth, fuzzer",
     )
-    auth_token: Optional[str] = Field(
+    auth_token: str | None = Field(
         default=None,
         description="Bearer token to include in requests (so protected endpoints can be tested)",
     )
@@ -63,11 +61,11 @@ async def _execute_apisec_scan(scan_id: str) -> None:
     scan["started_at"] = datetime.now(timezone.utc)
 
     spec_url: str = scan["options"]["spec_url"]
-    auth_token: Optional[str] = scan["options"].get("auth_token")
+    auth_token: str | None = scan["options"].get("auth_token")
     max_fuzz: int = scan["options"].get("max_fuzz_requests", 100)
 
     try:
-        from modules.apisec import OpenAPIParser, APIEndpointTester, APIAuthTester, APIFuzzer
+        from modules.apisec import APIAuthTester, APIEndpointTester, APIFuzzer, OpenAPIParser
 
         parser = OpenAPIParser()
         api = await parser.parse_url(spec_url)
@@ -186,7 +184,7 @@ async def parse_spec(request: DiscoverRequest) -> APISpecInfo:
             description=api.description,
         )
     except Exception as e:
-        raise HTTPException(status_code=400, detail=f"Failed to parse spec: {e}")
+        raise HTTPException(status_code=400, detail=f"Failed to parse spec: {e}") from e
 
 
 @router.post("/discover", summary="Discover OpenAPI spec locations")

@@ -1,12 +1,11 @@
 """Subdomain discovery module."""
 
 import asyncio
-from typing import Optional
 
 import dns.asyncresolver
 
 from core import load_wordlist
-from core.models import Target, ScanResult, Severity
+from core.models import ScanResult, Severity, Target
 from modules.osint.base import OSINTModule
 
 
@@ -37,9 +36,9 @@ class SubdomainScanner(OSINTModule):
 
     def __init__(
         self,
-        wordlist: Optional[list[str]] = None,
+        wordlist: list[str] | None = None,
         max_concurrent: int = 20,
-        seclists_path: Optional[str] = None,
+        seclists_path: str | None = None,
     ):
         super().__init__()
         self.wordlist = wordlist or load_wordlist(
@@ -65,7 +64,7 @@ class SubdomainScanner(OSINTModule):
         found_subdomains = []
         semaphore = asyncio.Semaphore(self.max_concurrent)
 
-        async def check_subdomain(subdomain: str) -> Optional[dict]:
+        async def check_subdomain(subdomain: str) -> dict | None:
             async with semaphore:
                 fqdn = f"{subdomain}.{domain}"
                 try:

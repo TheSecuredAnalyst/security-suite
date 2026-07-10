@@ -2,7 +2,6 @@
 
 import json
 from dataclasses import dataclass, field
-from typing import Optional
 from pathlib import Path
 
 import httpx
@@ -19,7 +18,7 @@ class APIParameter:
     required: bool = False
     param_type: str = "string"
     description: str = ""
-    example: Optional[str] = None
+    example: str | None = None
 
 
 @dataclass
@@ -27,11 +26,11 @@ class APIEndpoint:
     """API endpoint definition."""
     path: str
     method: str
-    operation_id: Optional[str] = None
+    operation_id: str | None = None
     summary: str = ""
     description: str = ""
     parameters: list[APIParameter] = field(default_factory=list)
-    request_body: Optional[dict] = None
+    request_body: dict | None = None
     responses: dict = field(default_factory=dict)
     security: list[dict] = field(default_factory=list)
     tags: list[str] = field(default_factory=list)
@@ -42,10 +41,10 @@ class APISecurityScheme:
     """API security scheme."""
     name: str
     scheme_type: str  # apiKey, http, oauth2, openIdConnect
-    location: Optional[str] = None  # header, query, cookie (for apiKey)
-    scheme: Optional[str] = None  # bearer, basic (for http)
-    bearer_format: Optional[str] = None
-    flows: Optional[dict] = None  # for oauth2
+    location: str | None = None  # header, query, cookie (for apiKey)
+    scheme: str | None = None  # bearer, basic (for http)
+    bearer_format: str | None = None
+    flows: dict | None = None  # for oauth2
 
 
 @dataclass

@@ -2,11 +2,10 @@
 
 import json
 from datetime import datetime
-from typing import Optional
 
 import httpx
 
-from modules.siem.base import SIEMExporter, SIEMEvent
+from modules.siem.base import SIEMEvent, SIEMExporter
 
 
 class ElasticsearchExporter(SIEMExporter):
@@ -16,9 +15,9 @@ class ElasticsearchExporter(SIEMExporter):
         self,
         hosts: list[str],
         index_pattern: str = "security-suite-{date}",
-        username: Optional[str] = None,
-        password: Optional[str] = None,
-        api_key: Optional[str] = None,
+        username: str | None = None,
+        password: str | None = None,
+        api_key: str | None = None,
         verify_ssl: bool = True,
         timeout: float = 10.0,
     ):
@@ -63,7 +62,7 @@ class ElasticsearchExporter(SIEMExporter):
 
         return headers
 
-    def _get_auth(self) -> Optional[tuple]:
+    def _get_auth(self) -> tuple | None:
         """Get basic auth tuple if configured."""
         if self.username and self.password:
             return (self.username, self.password)

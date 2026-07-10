@@ -3,10 +3,9 @@
 import asyncio
 import socket
 import ssl
-from typing import Optional
 from enum import IntEnum
 
-from modules.siem.base import SIEMExporter, SIEMEvent
+from modules.siem.base import SIEMEvent, SIEMExporter
 
 
 class SyslogFacility(IntEnum):
@@ -92,7 +91,7 @@ class SyslogExporter(SIEMExporter):
         self.tls_verify = tls_verify
         self.timeout = timeout
 
-        self._socket: Optional[socket.socket] = None
+        self._socket: socket.socket | None = None
 
     def _get_priority(self, severity: str) -> int:
         """Calculate syslog priority (facility * 8 + severity)."""

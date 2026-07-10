@@ -1,14 +1,12 @@
 """Web crawler for discovering pages and endpoints."""
 
-import asyncio
 import re
-from typing import Set, Optional
-from urllib.parse import urljoin, urlparse, parse_qs
+from urllib.parse import urljoin, urlparse
 
 from bs4 import BeautifulSoup
 
-from core.models import Target, ScanResult, Severity
 from core.http_client import HTTPClient
+from core.models import ScanResult, Severity, Target
 from modules.webscanner.base import WebScannerModule
 
 
@@ -31,12 +29,12 @@ class WebCrawler(WebScannerModule):
         base_domain = urlparse(base_url).netloc
         self.logger.info(f"Starting crawl of {base_url}")
 
-        visited: Set[str] = set()
+        visited: set[str] = set()
         to_visit: list[tuple[str, int]] = [(base_url, 0)]  # (url, depth)
         pages: list[dict] = []
         forms: list[dict] = []
-        endpoints: Set[str] = set()
-        external_links: Set[str] = set()
+        endpoints: set[str] = set()
+        external_links: set[str] = set()
 
         try:
             async with HTTPClient() as client:
