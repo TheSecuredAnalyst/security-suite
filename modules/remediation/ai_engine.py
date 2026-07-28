@@ -17,8 +17,6 @@ import json
 import re
 from dataclasses import dataclass, field
 
-import ollama
-
 from core.guardrails import ScriptValidationResult, guardrails
 from core.logger import get_logger
 from modules.exploit_engine.runner import ExploitResult
@@ -117,6 +115,11 @@ class RemediationAI:
     """
 
     def __init__(self, model: str = DEFAULT_MODEL, ollama_host: str = "http://localhost:11434"):
+        # Imported lazily so the rest of the remediation package (dataclasses,
+        # the guardrail-gated AutoHardener) can be used without the optional
+        # `ollama` dependency installed.
+        import ollama  # noqa: PLC0415
+
         self.model = model
         self._client = ollama.Client(host=ollama_host)
 
