@@ -252,9 +252,14 @@ class MITREMapper:
 
     @staticmethod
     def from_service(service: str, port: int | None = None) -> ATTACKTag | None:
-        svc = service.lower().replace("-", "")
+        svc = service.lower().strip()
+        # Exact match first: some keys (e.g. "netbios-ssn") contain hyphens and
+        # would never match if we only compared the hyphen-stripped form.
         if svc in SERVICE_MAP:
             return SERVICE_MAP[svc]
+        compact = svc.replace("-", "")
+        if compact in SERVICE_MAP:
+            return SERVICE_MAP[compact]
         if port and port in PORT_MAP:
             return SERVICE_MAP.get(PORT_MAP[port])
         return None

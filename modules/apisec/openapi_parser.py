@@ -138,8 +138,9 @@ class OpenAPIParser:
         Returns:
             Parsed API specification
         """
-        # Determine OpenAPI version
-        openapi_version = spec.get("openapi", spec.get("swagger", "2.0"))
+        # Determine OpenAPI version. YAML parses an unquoted `openapi: 3.0`
+        # as a float, so coerce before doing string comparisons.
+        openapi_version = str(spec.get("openapi", spec.get("swagger", "2.0")))
         is_v3 = openapi_version.startswith("3")
 
         # Parse info
