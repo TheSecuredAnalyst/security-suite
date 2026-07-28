@@ -30,7 +30,7 @@ dependencies, Ollama, and a local AI model automatically.
 ### Linux / macOS
 
 ```bash
-git clone https://github.com/53cur3dL34rn/security-suite.git
+git clone https://github.com/TheSecuredAnalyst/security-suite.git
 cd security-suite
 bash setup.sh
 ```
@@ -47,7 +47,7 @@ bash setup.sh --no-extras          # skip nmap / searchsploit
 Open PowerShell as a normal user (no administrator needed) and run:
 
 ```powershell
-git clone https://github.com/53cur3dL34rn/security-suite.git
+git clone https://github.com/TheSecuredAnalyst/security-suite.git
 cd security-suite
 powershell -ExecutionPolicy Bypass -File setup.ps1
 ```
@@ -169,7 +169,7 @@ Then open `http://localhost:8000/docs` in your browser to explore and test all e
 If you prefer not to use the setup script:
 
 ```bash
-git clone https://github.com/53cur3dL34rn/security-suite.git
+git clone https://github.com/TheSecuredAnalyst/security-suite.git
 cd security-suite
 
 # Create and activate virtual environment
