@@ -55,12 +55,12 @@ class TestInit:
         assert storage.jobs_file.name == "jobs.json"
 
     def test_defaults_to_settings_data_dir(self, tmp_path, monkeypatch):
-        import modules.scheduler.storage as storage_module
-
         class FakeSettings:
             data_dir = tmp_path / "from-settings"
 
-        monkeypatch.setattr(storage_module, "get_settings", lambda: FakeSettings())
+        monkeypatch.setattr(
+            "modules.scheduler.storage.get_settings", lambda: FakeSettings()
+        )
         assert ScheduleStorage().storage_dir == tmp_path / "from-settings" / "scheduler"
 
 

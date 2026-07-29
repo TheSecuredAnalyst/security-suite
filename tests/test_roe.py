@@ -116,7 +116,7 @@ class TestEvaluateHostnames:
     def test_hostname_is_not_blocked(self):
         roe = RulesOfEngagement(allowed_cidrs=["10.0.0.0/8"])
         _, allowed = roe.evaluate(["example.com"])
-        assert "example.com" in allowed
+        assert allowed == ["example.com"]
 
 
 class TestEvaluateMisc:
