@@ -1,13 +1,27 @@
 """Phishing server for hosting landing pages and tracking."""
 
+import html
+import re
 from collections.abc import Callable
 from datetime import datetime, timezone
+from urllib.parse import quote
 
 from aiohttp import web
 
-from core.logger import get_logger
+from core.logger import get_logger, scrub
 from modules.phishing.campaign import CampaignManager
 from modules.phishing.templates import TemplateManager
+
+# Campaign ids are uuid4 strings and tracking ids are the first 8 characters of
+# one, so anything outside this alphabet is not an id we issued. Rejecting the
+# rest keeps path segments out of the HTML we render and out of the redirect
+# Location header.
+_ID_PATTERN = re.compile(r"\A[A-Za-z0-9_-]{1,64}\Z")
+
+
+def _is_valid_id(value: str) -> bool:
+    """True if `value` looks like an id this server issued."""
+    return bool(_ID_PATTERN.match(value))
 
 
 class PhishingServer:
@@ -68,6 +82,9 @@ class PhishingServer:
         campaign_id = request.match_info["campaign_id"]
         tracking_id = request.match_info["tracking_id"]
 
+        if not (_is_valid_id(campaign_id) and _is_valid_id(tracking_id)):
+            return web.Response(text="Not found", status=404)
+
         campaign = self.campaign_manager.get_campaign(campaign_id)
         if campaign:
             target = campaign.get_target_by_tracking_id(tracking_id)
@@ -75,7 +92,10 @@ class PhishingServer:
                 target.email_opened = True
                 target.opened_at = datetime.now(timezone.utc)
                 self.campaign_manager.save_campaign(campaign)
-                self.logger.info(f"Email opened: {target.email} (campaign: {campaign.name})")
+                self.logger.info(
+                    f"Email opened: {scrub(target.email)} "
+                    f"(campaign: {scrub(campaign.name)})"
+                )
 
         # Return 1x1 transparent GIF
         gif = b'\x47\x49\x46\x38\x39\x61\x01\x00\x01\x00\x80\x00\x00\xff\xff\xff\x00\x00\x00\x21\xf9\x04\x01\x00\x00\x00\x00\x2c\x00\x00\x00\x00\x01\x00\x01\x00\x00\x02\x02\x44\x01\x00\x3b'
@@ -90,6 +110,9 @@ class PhishingServer:
         campaign_id = request.match_info["campaign_id"]
         tracking_id = request.match_info["tracking_id"]
 
+        if not (_is_valid_id(campaign_id) and _is_valid_id(tracking_id)):
+            return web.Response(text="Not found", status=404)
+
         campaign = self.campaign_manager.get_campaign(campaign_id)
         if campaign:
             target = campaign.get_target_by_tracking_id(tracking_id)
@@ -97,7 +120,10 @@ class PhishingServer:
                 target.link_clicked = True
                 target.clicked_at = datetime.now(timezone.utc)
                 self.campaign_manager.save_campaign(campaign)
-                self.logger.info(f"Link clicked: {target.email} (campaign: {campaign.name})")
+                self.logger.info(
+                    f"Link clicked: {scrub(target.email)} "
+                    f"(campaign: {scrub(campaign.name)})"
+                )
 
                 # Call click callbacks
                 for callback in self._on_click_callbacks:
@@ -106,13 +132,20 @@ class PhishingServer:
                     except Exception as e:
                         self.logger.error(f"Click callback error: {e}")
 
-        # Redirect to landing page
-        raise web.HTTPFound(f"/landing/{campaign_id}/{tracking_id}")
+        # Redirect to the landing page. Both segments are validated ids and are
+        # percent-encoded, so the Location header stays a path on this host and
+        # cannot become "//evil.example/..." (a protocol-relative redirect).
+        safe_campaign_id = quote(campaign_id, safe="")
+        safe_tracking_id = quote(tracking_id, safe="")
+        raise web.HTTPFound(f"/landing/{safe_campaign_id}/{safe_tracking_id}")
 
     async def _handle_landing(self, request: web.Request) -> web.Response:
         """Serve the phishing landing page."""
         campaign_id = request.match_info["campaign_id"]
         tracking_id = request.match_info["tracking_id"]
+
+        if not (_is_valid_id(campaign_id) and _is_valid_id(tracking_id)):
+            return web.Response(text="Not found", status=404)
 
         campaign = self.campaign_manager.get_campaign(campaign_id)
         if not campaign:
@@ -122,25 +155,32 @@ class PhishingServer:
         if not template:
             return web.Response(text="Template not found", status=404)
 
-        # Render landing page
-        html = template.html.format(
-            tracking_id=tracking_id,
-            capture_endpoint=f"/capture/{campaign_id}",
-            tracking_pixel=f"/pixel/{campaign_id}/{tracking_id}.gif",
+        # The ids land inside the template's HTML (a hidden form field) and
+        # inside its URLs, so escape for each context rather than trusting the
+        # id check alone.
+        page = template.html.format(
+            tracking_id=html.escape(tracking_id, quote=True),
+            capture_endpoint=f"/capture/{quote(campaign_id, safe='')}",
+            tracking_pixel=(
+                f"/pixel/{quote(campaign_id, safe='')}/{quote(tracking_id, safe='')}.gif"
+            ),
         )
 
-        return web.Response(text=html, content_type="text/html")
+        return web.Response(text=page, content_type="text/html")
 
     async def _handle_capture(self, request: web.Request) -> web.Response:
         """Handle credential capture (for awareness training)."""
         campaign_id = request.match_info["campaign_id"]
+
+        if not _is_valid_id(campaign_id):
+            return web.Response(text="Not found", status=404)
 
         campaign = self.campaign_manager.get_campaign(campaign_id)
         if not campaign:
             return web.Response(text="Not found", status=404)
 
         data = await request.post()
-        tracking_id = data.get("tracking_id", "")
+        tracking_id = str(data.get("tracking_id", ""))
 
         target = campaign.get_target_by_tracking_id(tracking_id)
         if target and not target.credentials_submitted:
@@ -148,7 +188,10 @@ class PhishingServer:
             target.submitted_at = datetime.now(timezone.utc)
             self.campaign_manager.save_campaign(campaign)
 
-            self.logger.warning(f"Credentials submitted: {target.email} (campaign: {campaign.name})")
+            self.logger.warning(
+                f"Credentials submitted: {scrub(target.email)} "
+                f"(campaign: {scrub(campaign.name)})"
+            )
 
             # Call submit callbacks
             for callback in self._on_submit_callbacks:
