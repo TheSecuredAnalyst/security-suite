@@ -34,6 +34,10 @@ class Settings(BaseSettings):
     # Network settings
     request_timeout: int = 30
     max_concurrent_requests: int = 10
+    # Allow the suite to fetch user-supplied URLs that resolve to private,
+    # loopback or link-local addresses. Off by default so a hosted API cannot be
+    # used as an SSRF proxy; turn on for internal engagements.
+    allow_private_targets: bool = False
     user_agent: str = "SecuritySuite/0.2.0 (https://github.com/security-suite)"
 
     # Rate limiting

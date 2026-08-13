@@ -5,13 +5,13 @@ import random
 import string
 from collections.abc import AsyncIterator
 from dataclasses import dataclass
-from urllib.parse import urljoin
 
 import httpx
 
 from core import load_wordlist
 from core.logger import get_logger
 from core.models import Finding, ScanResult, Severity, Target
+from core.url_guard import safe_join, validate_outbound_url
 from modules.apisec.openapi_parser import APIEndpoint, APIParameter, ParsedAPI
 
 
@@ -135,14 +135,22 @@ class APIFuzzer:
 
         Returns:
             Scan result with findings
+
+        Raises:
+            BlockedTargetError: The spec's base URL is not a fetchable public
+                http(s) target.
         """
+        # api.base_url comes from the fetched spec's `servers` block, so it is
+        # attacker-controlled input to every request below.
+        base_url = validate_outbound_url(api.base_url)
+
         target = Target.from_string(api.base_url)
         self.logger.info(f"Fuzzing {api.title} ({len(api.endpoints)} endpoints)")
 
         all_findings = []
         request_count = 0
 
-        async for result in self._fuzz_endpoints(api):
+        async for result in self._fuzz_endpoints(api, base_url):
             if result.finding:
                 all_findings.append(result.finding)
 
@@ -163,8 +171,14 @@ class APIFuzzer:
             },
         )
 
-    async def _fuzz_endpoints(self, api: ParsedAPI) -> AsyncIterator[FuzzResult]:
+    async def _fuzz_endpoints(
+        self, api: ParsedAPI, base_url: str
+    ) -> AsyncIterator[FuzzResult]:
         """Fuzz all endpoints.
+
+        Args:
+            api: Parsed API specification
+            base_url: Validated base URL to send requests to
 
         Yields:
             FuzzResult for each test
@@ -174,7 +188,7 @@ class APIFuzzer:
         async with httpx.AsyncClient(timeout=self.timeout) as client:
             for endpoint in api.endpoints:
                 # Get baseline response
-                baseline = await self._get_baseline(client, api.base_url, endpoint, headers)
+                baseline = await self._get_baseline(client, base_url, endpoint, headers)
 
                 # Fuzz each parameter
                 for param in endpoint.parameters:
@@ -182,7 +196,7 @@ class APIFuzzer:
 
                     for payload in payloads:
                         result = await self._fuzz_parameter(
-                            client, api.base_url, endpoint, param, payload, headers, baseline
+                            client, base_url, endpoint, param, payload, headers, baseline
                         )
                         yield result
 
@@ -192,7 +206,7 @@ class APIFuzzer:
                 # Fuzz request body if applicable
                 if endpoint.request_body and endpoint.method in ["POST", "PUT", "PATCH"]:
                     async for result in self._fuzz_body(
-                        client, api.base_url, endpoint, headers, baseline
+                        client, base_url, endpoint, headers, baseline
                     ):
                         yield result
 
@@ -217,7 +231,7 @@ class APIFuzzer:
         headers: dict,
     ) -> httpx.Response | None:
         """Get baseline response for comparison."""
-        url = urljoin(base_url, endpoint.path.replace("{", "1").replace("}", ""))
+        url = safe_join(base_url, endpoint.path.replace("{", "1").replace("}", ""))
 
         try:
             return await client.request(
@@ -257,7 +271,7 @@ class APIFuzzer:
         baseline: httpx.Response | None,
     ) -> FuzzResult:
         """Fuzz a single parameter."""
-        url = urljoin(base_url, endpoint.path.replace("{", "1").replace("}", ""))
+        url = safe_join(base_url, endpoint.path.replace("{", "1").replace("}", ""))
 
         result = FuzzResult(
             endpoint=endpoint.path,
@@ -317,7 +331,7 @@ class APIFuzzer:
         baseline: httpx.Response | None,
     ) -> AsyncIterator[FuzzResult]:
         """Fuzz request body."""
-        url = urljoin(base_url, endpoint.path.replace("{", "1").replace("}", ""))
+        url = safe_join(base_url, endpoint.path.replace("{", "1").replace("}", ""))
 
         # Test various malformed bodies
         test_bodies = [
