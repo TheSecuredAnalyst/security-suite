@@ -147,6 +147,10 @@ class SyslogExporter(SIEMExporter):
 
                 if self.use_tls:
                     context = ssl.create_default_context()
+                    # create_default_context() still permits TLS 1.0/1.1 on
+                    # older OpenSSL builds; syslog forwarding carries finding
+                    # detail, so require TLS 1.2 or better.
+                    context.minimum_version = ssl.TLSVersion.TLSv1_2
                     if not self.tls_verify:
                         context.check_hostname = False
                         context.verify_mode = ssl.CERT_NONE

@@ -103,3 +103,52 @@ async def test_export_scan_result_delegates_to_batch():
     # SCAN_COMPLETED message is "Scan completed: ..." so it is not "fail" -> success.
     assert success == 2
     assert failed == 0
+
+
+class TestSyslogTLS:
+    """The TLS transport must not negotiate down to TLS 1.0/1.1."""
+
+    def _connect(self, monkeypatch, **kwargs):
+        """Build a TLS socket with the network stubbed out, return the context."""
+        import socket as socket_mod
+        import ssl
+
+        from modules.siem.syslog import SyslogExporter
+
+        class FakeSocket:
+            def settimeout(self, _timeout):
+                pass
+
+            def connect(self, _addr):
+                pass
+
+        contexts = []
+        real_create_default_context = ssl.create_default_context
+
+        def fake_create_default_context(*args, **kw):
+            context = real_create_default_context(*args, **kw)
+            context.wrap_socket = lambda sock, server_hostname=None: FakeSocket()
+            contexts.append(context)
+            return context
+
+        monkeypatch.setattr(socket_mod, "socket", lambda *a, **kw: FakeSocket())
+        monkeypatch.setattr(ssl, "create_default_context", fake_create_default_context)
+
+        exporter = SyslogExporter(host="siem.example.com", port=6514, **kwargs)
+        exporter._get_socket()
+
+        assert contexts, "no TLS context was created"
+        return contexts[0]
+
+    def test_minimum_version_is_tls_1_2(self, monkeypatch):
+        import ssl
+
+        context = self._connect(monkeypatch, protocol="tls")
+        assert context.minimum_version >= ssl.TLSVersion.TLSv1_2
+
+    def test_minimum_version_holds_when_verification_is_disabled(self, monkeypatch):
+        import ssl
+
+        context = self._connect(monkeypatch, protocol="tls", tls_verify=False)
+        assert context.minimum_version >= ssl.TLSVersion.TLSv1_2
+        assert context.verify_mode == ssl.CERT_NONE
