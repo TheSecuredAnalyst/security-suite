@@ -90,25 +90,21 @@ class TestLandingPage:
         assert response.status == 404
         assert payload not in response.text
 
-    async def test_reflected_id_is_escaped_even_if_the_id_check_is_bypassed(
-        self, monkeypatch
-    ):
-        """Defense in depth: the escaping must stand on its own."""
-        from modules.phishing import server as server_module
-
-        monkeypatch.setattr(server_module, "_is_valid_id", lambda _v: True)
-
+    async def test_stored_id_is_escaped_before_it_reaches_the_page(self):
+        """Defense in depth: escaping must hold even for a poisoned stored id."""
         payload = '"><script>alert(1)</script>'
         server = _server()
         server.campaign_manager.get_campaign = lambda _cid: SimpleNamespace(
             id=VALID_CAMPAIGN_ID,
             name="Q3 Awareness",
             landing_template_id="office365",
-            get_target_by_tracking_id=lambda _tid: None,
+            get_target_by_tracking_id=lambda _tid: SimpleNamespace(
+                tracking_id=payload, email="user@example.com"
+            ),
         )
 
         response = await server._handle_landing(
-            FakeRequest(campaign_id=VALID_CAMPAIGN_ID, tracking_id=payload)
+            FakeRequest(campaign_id=VALID_CAMPAIGN_ID, tracking_id=VALID_TRACKING_ID)
         )
 
         assert "<script>" not in response.text
