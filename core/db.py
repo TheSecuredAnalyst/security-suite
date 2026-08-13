@@ -4,6 +4,7 @@ SQLite persistence layer for the security loop.
 Tables:
   runs        — one row per RedBlueOrchestrator.run() call
   findings    — one row per confirmed LoopFinding (deduped by ip+port)
+  entities    — the run's provenance graph (see core.entities)
   remediations — AI-generated scripts linked to findings
 
 DB location: ~/.secsuite/secsuite.db  (overridable via SECSUITE_DB env var)
@@ -19,8 +20,12 @@ from collections.abc import Generator
 from contextlib import contextmanager
 from datetime import datetime, timezone
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from core.logger import get_logger
+
+if TYPE_CHECKING:
+    from core.entities import EntityGraph
 
 logger = get_logger("core.db")
 
@@ -115,6 +120,24 @@ def init_db() -> None:
                 created_at           TEXT NOT NULL
             );
 
+            CREATE TABLE IF NOT EXISTS entities (
+                id              TEXT NOT NULL,
+                run_id          TEXT NOT NULL REFERENCES runs(id),
+                entity_type     TEXT NOT NULL,
+                value           TEXT NOT NULL,
+                module          TEXT NOT NULL,
+                parent_id       TEXT,
+                discovered_at   TEXT NOT NULL,
+                confidence      INTEGER DEFAULT 100,
+                in_scope        INTEGER DEFAULT 1,
+                sources         TEXT DEFAULT '[]',
+                data            TEXT DEFAULT '{}',
+                PRIMARY KEY (run_id, id)
+            );
+
+            CREATE INDEX IF NOT EXISTS idx_entities_run    ON entities(run_id);
+            CREATE INDEX IF NOT EXISTS idx_entities_parent ON entities(run_id, parent_id);
+            CREATE INDEX IF NOT EXISTS idx_entities_type   ON entities(entity_type, value);
             CREATE INDEX IF NOT EXISTS idx_findings_run   ON findings(run_id);
             CREATE INDEX IF NOT EXISTS idx_findings_ip    ON findings(ip, port);
             CREATE INDEX IF NOT EXISTS idx_findings_status ON findings(exploit_status);
@@ -237,6 +260,78 @@ def list_confirmed_findings(limit: int = 200) -> list[dict]:
             LIMIT ?
         """, (limit,)).fetchall()
         return [dict(r) for r in rows]
+
+
+# ── Entity CRUD ───────────────────────────────────────────────────────────────
+
+def save_entities(run_id: str, graph: EntityGraph) -> int:
+    """Persist a run's entity graph. Returns the number of rows written.
+
+    Re-running a scan replaces that run's graph rather than appending to it,
+    so a retried run does not leave two generations of nodes behind.
+    """
+    entities = graph.all()
+    if not entities:
+        return 0
+
+    sql = """
+        INSERT INTO entities
+            (id, run_id, entity_type, value, module, parent_id,
+             discovered_at, confidence, in_scope, sources, data)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ON CONFLICT(run_id, id) DO UPDATE SET
+            sources=excluded.sources,
+            data=excluded.data,
+            in_scope=excluded.in_scope
+    """
+    with get_db() as conn:
+        conn.executemany(sql, [
+            (
+                e.id,
+                run_id,
+                e.entity_type.value,
+                e.value,
+                e.module,
+                e.parent_id,
+                e.discovered_at.isoformat(),
+                e.confidence,
+                int(e.in_scope),
+                json.dumps(graph.sources(e)),
+                json.dumps(e.data),
+            )
+            for e in entities
+        ])
+    return len(entities)
+
+
+def list_entities(run_id: str) -> list[dict]:
+    """Raw entity rows for a run, parents before children where possible."""
+    with get_db() as conn:
+        rows = conn.execute(
+            "SELECT * FROM entities WHERE run_id=? ORDER BY discovered_at", (run_id,)
+        ).fetchall()
+        return [dict(r) for r in rows]
+
+
+def load_entity_graph(run_id: str) -> EntityGraph:
+    """Rebuild a run's entity graph from the database."""
+    from core.entities import Entity, EntityGraph
+
+    entities = [
+        Entity(
+            id=row["id"],
+            entity_type=row["entity_type"],
+            value=row["value"],
+            module=row["module"],
+            parent_id=row["parent_id"],
+            discovered_at=row["discovered_at"],
+            confidence=row["confidence"],
+            in_scope=bool(row["in_scope"]),
+            data=json.loads(row["data"] or "{}"),
+        )
+        for row in list_entities(run_id)
+    ]
+    return EntityGraph.from_entities(entities)
 
 
 # ── Remediation CRUD ──────────────────────────────────────────────────────────

@@ -334,3 +334,73 @@ class TestTransactions:
         with db.get_db() as second:
             pass
         assert first is second
+
+
+class TestEntities:
+    """The provenance graph must survive a round trip through SQLite."""
+
+    def _graph(self):
+        from core.entities import Entity, EntityGraph, EntityType
+
+        graph = EntityGraph()
+        target = graph.add(Entity.root("10.0.0.0/24", EntityType.TARGET, "orchestrator"))
+        host = graph.add(target.child(EntityType.IP_ADDRESS, "10.0.0.5", "scanner"))
+        service = graph.add(host.child(EntityType.SERVICE, "22/tcp ssh", "scanner"))
+        graph.add(service.child(EntityType.VULNERABILITY, "CVE-2024-6387", "cve_lookup"))
+        graph.add(Entity.root("10.0.0.5", EntityType.IP_ADDRESS, "shodan"))  # second sighting
+        return graph
+
+    def test_save_and_reload_preserves_the_chain(self, db):
+        from core.entities import EntityType
+
+        db.upsert_run("run-1", _run())
+        graph = self._graph()
+
+        written = db.save_entities("run-1", graph)
+        reloaded = db.load_entity_graph("run-1")
+
+        assert written == len(graph)
+        cve = reloaded.find(EntityType.VULNERABILITY, "CVE-2024-6387")
+        assert reloaded.attack_path(cve) == (
+            "10.0.0.0/24 → 10.0.0.5 → 22/tcp ssh → CVE-2024-6387"
+        )
+
+    def test_stores_one_row_per_deduped_entity(self, db):
+        db.upsert_run("run-1", _run())
+        db.save_entities("run-1", self._graph())
+
+        rows = db.list_entities("run-1")
+        values = [r["value"] for r in rows]
+
+        assert len(rows) == 4
+        assert values.count("10.0.0.5") == 1
+
+    def test_records_every_module_that_saw_an_entity(self, db):
+        db.upsert_run("run-1", _run())
+        db.save_entities("run-1", self._graph())
+
+        host_row = next(r for r in db.list_entities("run-1") if r["value"] == "10.0.0.5")
+        assert json.loads(host_row["sources"]) == ["scanner", "shodan"]
+
+    def test_saving_twice_does_not_duplicate_rows(self, db):
+        db.upsert_run("run-1", _run())
+        graph = self._graph()
+
+        db.save_entities("run-1", graph)
+        db.save_entities("run-1", graph)
+
+        assert len(db.list_entities("run-1")) == len(graph)
+
+    def test_runs_do_not_share_entities(self, db):
+        db.upsert_run("run-1", _run())
+        db.upsert_run("run-2", _run())
+        db.save_entities("run-1", self._graph())
+
+        assert db.list_entities("run-2") == []
+        assert len(db.load_entity_graph("run-2")) == 0
+
+    def test_empty_graph_writes_nothing(self, db):
+        from core.entities import EntityGraph
+
+        db.upsert_run("run-1", _run())
+        assert db.save_entities("run-1", EntityGraph()) == 0
