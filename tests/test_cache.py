@@ -157,18 +157,17 @@ class TestCacheEntry:
         )
         assert entry_expired.is_expired()
 
-    def test_entry_is_hashable(self):
-        """__hash__ returned the checksum string, so hash() raised TypeError."""
+    def test_entries_compare_by_value(self):
+        """The broken __hash__ is gone; equality is pydantic's field comparison."""
         now = datetime.now(timezone.utc)
-        entry = CacheEntry(
-            target="example.com",
-            modules=["osint"],
-            result_data={},
-            created_at=now,
-            expires_at=now + timedelta(hours=1),
-            checksum="abc123",
-        )
+        fields = {
+            "target": "example.com",
+            "modules": ["osint"],
+            "result_data": {},
+            "created_at": now,
+            "expires_at": now + timedelta(hours=1),
+            "checksum": "abc123",
+        }
 
-        assert isinstance(hash(entry), int)
-        assert hash(entry) == hash("abc123")
-        assert len({entry, entry}) == 1
+        assert CacheEntry(**fields) == CacheEntry(**fields)
+        assert CacheEntry(**fields) != CacheEntry(**{**fields, "checksum": "different"})

@@ -114,30 +114,33 @@ class PhishingServer:
             return web.Response(text="Not found", status=404)
 
         campaign = self.campaign_manager.get_campaign(campaign_id)
-        if campaign:
-            target = campaign.get_target_by_tracking_id(tracking_id)
-            if target and not target.link_clicked:
-                target.link_clicked = True
-                target.clicked_at = datetime.now(timezone.utc)
-                self.campaign_manager.save_campaign(campaign)
-                self.logger.info(
-                    f"Link clicked: {scrub(target.email)} "
-                    f"(campaign: {scrub(campaign.name)})"
-                )
+        target = campaign.get_target_by_tracking_id(tracking_id) if campaign else None
+        if not (campaign and target):
+            return web.Response(text="Not found", status=404)
 
-                # Call click callbacks
-                for callback in self._on_click_callbacks:
-                    try:
-                        callback(campaign, target)
-                    except Exception as e:
-                        self.logger.error(f"Click callback error: {e}")
+        if not target.link_clicked:
+            target.link_clicked = True
+            target.clicked_at = datetime.now(timezone.utc)
+            self.campaign_manager.save_campaign(campaign)
+            self.logger.info(
+                f"Link clicked: {scrub(target.email)} "
+                f"(campaign: {scrub(campaign.name)})"
+            )
 
-        # Redirect to the landing page. Both segments are validated ids and are
-        # percent-encoded, so the Location header stays a path on this host and
-        # cannot become "//evil.example/..." (a protocol-relative redirect).
-        safe_campaign_id = quote(campaign_id, safe="")
-        safe_tracking_id = quote(tracking_id, safe="")
-        raise web.HTTPFound(f"/landing/{safe_campaign_id}/{safe_tracking_id}")
+            # Call click callbacks
+            for callback in self._on_click_callbacks:
+                try:
+                    callback(campaign, target)
+                except Exception as e:
+                    self.logger.error(f"Click callback error: {e}")
+
+        # Build the Location header from the ids we hold, not from the request,
+        # so nothing an attacker types can reach the header. Percent-encoding
+        # keeps it a path on this host either way.
+        raise web.HTTPFound(
+            f"/landing/{quote(campaign.id, safe='')}"
+            f"/{quote(target.tracking_id, safe='')}"
+        )
 
     async def _handle_landing(self, request: web.Request) -> web.Response:
         """Serve the phishing landing page."""
@@ -148,22 +151,24 @@ class PhishingServer:
             return web.Response(text="Not found", status=404)
 
         campaign = self.campaign_manager.get_campaign(campaign_id)
-        if not campaign:
+        target = campaign.get_target_by_tracking_id(tracking_id) if campaign else None
+        if not (campaign and target):
             return web.Response(text="Not found", status=404)
 
         template = self.template_manager.get_landing_template(campaign.landing_template_id)
         if not template:
             return web.Response(text="Template not found", status=404)
 
-        # The ids land inside the template's HTML (a hidden form field) and
-        # inside its URLs, so escape for each context rather than trusting the
-        # id check alone.
+        # Substitute the stored ids rather than the request's, so no request
+        # text reaches the page. They are still escaped for the context each
+        # one lands in: HTML for the hidden form field, percent-encoding for
+        # the URLs.
+        stored_campaign_id = quote(campaign.id, safe="")
+        stored_tracking_id = quote(target.tracking_id, safe="")
         page = template.html.format(
-            tracking_id=html.escape(tracking_id, quote=True),
-            capture_endpoint=f"/capture/{quote(campaign_id, safe='')}",
-            tracking_pixel=(
-                f"/pixel/{quote(campaign_id, safe='')}/{quote(tracking_id, safe='')}.gif"
-            ),
+            tracking_id=html.escape(target.tracking_id, quote=True),
+            capture_endpoint=f"/capture/{stored_campaign_id}",
+            tracking_pixel=f"/pixel/{stored_campaign_id}/{stored_tracking_id}.gif",
         )
 
         return web.Response(text=page, content_type="text/html")

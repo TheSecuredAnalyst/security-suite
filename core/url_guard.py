@@ -17,7 +17,7 @@ from urllib.parse import urljoin, urlsplit, urlunsplit
 
 from core.config import get_settings
 from core.exceptions import InvalidTargetError
-from core.logger import get_logger
+from core.logger import get_logger, scrub
 
 logger = get_logger(__name__)
 
@@ -103,7 +103,9 @@ def validate_outbound_url(url: str, *, allow_private: bool | None = None) -> str
         for address in resolve_host(host):
             ip = ipaddress.ip_address(address)
             if _is_blocked_address(ip):
-                logger.warning(f"Blocked outbound request to {host} ({address})")
+                logger.warning(
+                    f"Blocked outbound request to {scrub(host)} ({scrub(address)})"
+                )
                 raise BlockedTargetError(
                     url, f"resolves to non-public address {address}"
                 )
@@ -136,7 +138,7 @@ def safe_join(base_url: str, path: str) -> str:
     """
     parts = urlsplit(path)
     if parts.scheme or parts.netloc:
-        logger.warning(f"Ignoring absolute host in spec path: {path}")
+        logger.warning(f"Ignoring absolute host in spec path: {scrub(path)}")
 
     relative = urlunsplit(("", "", parts.path, parts.query, ""))
     if relative.startswith("//"):

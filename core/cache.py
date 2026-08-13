@@ -28,13 +28,11 @@ class CacheEntry(BaseModel):
         """Check if cache entry has expired."""
         return datetime.now(timezone.utc) >= self.expires_at
 
-    def __hash__(self) -> int:
-        """Hash on the content checksum.
-
-        Must return an int — returning the checksum string made hash(entry)
-        raise TypeError, so entries could never go in a set or dict key.
-        """
-        return hash(self.checksum)
+    # No __hash__: it used to return the checksum string, so hash(entry) raised
+    # TypeError and nothing could actually hash an entry. Nothing needs to —
+    # entries are dict values keyed by cache key — so the method is gone rather
+    # than repaired, which also keeps __eq__/__hash__ consistent (pydantic
+    # supplies field equality).
 
 
 class ScanCache:
