@@ -28,9 +28,13 @@ class CacheEntry(BaseModel):
         """Check if cache entry has expired."""
         return datetime.now(timezone.utc) >= self.expires_at
 
-    def __hash__(self) -> str:
-        """Get cache entry hash."""
-        return self.checksum
+    def __hash__(self) -> int:
+        """Hash on the content checksum.
+
+        Must return an int — returning the checksum string made hash(entry)
+        raise TypeError, so entries could never go in a set or dict key.
+        """
+        return hash(self.checksum)
 
 
 class ScanCache:

@@ -156,3 +156,19 @@ class TestCacheEntry:
             checksum="test",
         )
         assert entry_expired.is_expired()
+
+    def test_entry_is_hashable(self):
+        """__hash__ returned the checksum string, so hash() raised TypeError."""
+        now = datetime.now(timezone.utc)
+        entry = CacheEntry(
+            target="example.com",
+            modules=["osint"],
+            result_data={},
+            created_at=now,
+            expires_at=now + timedelta(hours=1),
+            checksum="abc123",
+        )
+
+        assert isinstance(hash(entry), int)
+        assert hash(entry) == hash("abc123")
+        assert len({entry, entry}) == 1

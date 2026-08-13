@@ -9,7 +9,7 @@ import shutil
 import tempfile
 import xml.etree.ElementTree as ET
 
-from core.logger import get_logger
+from core.logger import get_logger, scrub
 from core.models import ScanResult, Severity, Target
 
 logger = get_logger("vulnscan.scanner")
@@ -220,7 +220,7 @@ class NetworkScanner:
         if not ips:
             return [], [f"No valid IPs parsed from: {target_value}"]
 
-        self.logger.info(f"Scanning {len(ips)} host(s) with profile '{self.profile}'")
+        self.logger.info(f"Scanning {len(ips)} host(s) with profile '{scrub(self.profile)}'")
 
         semaphore = asyncio.Semaphore(self.max_parallel)
         errors: list[str] = []

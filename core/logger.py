@@ -1,12 +1,39 @@
 """Logging configuration for Security Suite."""
 
 import logging
+import re
 
 from rich.console import Console
 from rich.logging import RichHandler
 
 # Shared console for rich output
 console = Console()
+
+# Control characters that let an attacker forge log lines or drive a terminal.
+_LOG_CONTROL_CHARS = re.compile(r"[\x00-\x08\x0b-\x1f\x7f-\x9f]")
+
+
+def scrub(value: object, max_length: int = 256) -> str:
+    """Flatten an untrusted value so it cannot forge log entries (CWE-117).
+
+    Targets, profiles, URLs and operator names all reach the log from outside.
+    A value containing CRLF can otherwise inject a whole fake line — including a
+    fake severity — into the log a responder later reads.
+
+    Args:
+        value: The untrusted value.
+        max_length: Truncate beyond this many characters.
+
+    Returns:
+        A single-line, control-character-free string.
+    """
+    text = str(value).replace("\r\n", " ").replace("\n", " ").replace("\r", " ")
+    text = _LOG_CONTROL_CHARS.sub("", text)
+
+    if len(text) > max_length:
+        text = text[:max_length] + "…"
+
+    return text
 
 
 def get_logger(name: str, level: int | None = None) -> logging.Logger:
