@@ -589,9 +589,6 @@ def phish_server(
 
 # ============== AI Copilot Commands ==============
 
-# Store scan results for AI analysis
-_scan_results_cache: list = []
-
 
 def _collect_scan_results(target: str, modules: list[str]) -> list:
     """Run scans and collect results for AI analysis."""

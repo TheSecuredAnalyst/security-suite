@@ -6,7 +6,7 @@ from datetime import datetime, timezone
 from fastapi import APIRouter, BackgroundTasks, HTTPException, Query
 
 from api.models import FindingResponse, ScanListResponse, ScanRequest, ScanResponse
-from core.logger import get_logger
+from core.logger import get_logger, scrub
 from core.models import Target
 
 logger = get_logger("api.scans")
@@ -54,7 +54,7 @@ async def create_scan(
     else:
         scan["status"] = "completed"
         scan["completed_at"] = datetime.now(timezone.utc)
-        logger.info(f"DRY-RUN scan {scan_id} for {request.target}")
+        logger.info(f"DRY-RUN scan {scan_id} for {scrub(request.target)}")
 
     return ScanResponse(
         id=scan["id"],

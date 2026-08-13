@@ -29,7 +29,7 @@ from datetime import datetime, timezone
 
 from core.db import insert_remediation, upsert_finding, upsert_run
 from core.guardrails import guardrails
-from core.logger import get_logger
+from core.logger import get_logger, scrub
 from core.models import Target
 from modules.exploit_engine.runner import ExploitResult, ExploitRunner
 from modules.mitre.mapper import MITREMapper
@@ -198,8 +198,9 @@ class RedBlueOrchestrator:
             started_at=datetime.now(timezone.utc).isoformat(),
         )
 
-        logger.info(f"[LOOP] Starting {mode} loop: {target} "
-                    f"(operator: {session.operator}, engagement: {session.engagement_id})")
+        logger.info(f"[LOOP] Starting {scrub(mode)} loop: {scrub(target)} "
+                    f"(operator: {scrub(session.operator)}, "
+                    f"engagement: {scrub(session.engagement_id)})")
 
         # ── Phase RED-1: Scan + CVE lookup ────────────────────────────────────
         cve_findings = await self._phase_scan(target, scan_profile, report)
@@ -273,7 +274,7 @@ class RedBlueOrchestrator:
 
     async def _phase_scan(self, target: str, profile: str, report: LoopReport) -> list[dict]:
         """RED-1: Network scan + CVE lookup per service."""
-        logger.info(f"[RED-1] Scanning {target} (profile: {profile})")
+        logger.info(f"[RED-1] Scanning {scrub(target)} (profile: {scrub(profile)})")
         try:
             scanner = NetworkScanner(profile=profile, max_parallel=25)
             scan_target = Target(value=target, target_type="ip" if "/" not in target else "ip")
