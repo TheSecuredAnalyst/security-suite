@@ -7,7 +7,8 @@ from pathlib import Path
 import httpx
 import yaml
 
-from core.logger import get_logger
+from core.logger import get_logger, scrub
+from core.url_guard import validate_outbound_url
 
 
 @dataclass
@@ -65,30 +66,41 @@ class OpenAPIParser:
     def __init__(self):
         self.logger = get_logger("apisec.parser")
 
-    async def parse_url(self, url: str) -> ParsedAPI:
+    async def parse_url(self, url: str, allow_private: bool | None = None) -> ParsedAPI:
         """Parse OpenAPI spec from URL.
 
         Args:
             url: URL to OpenAPI JSON/YAML spec
+            allow_private: Permit specs hosted on private/loopback addresses.
+                Defaults to the SECSUITE_ALLOW_PRIVATE_TARGETS setting.
 
         Returns:
             Parsed API specification
-        """
-        self.logger.info(f"Fetching OpenAPI spec from {url}")
 
-        async with httpx.AsyncClient(timeout=30.0) as client:
-            response = await client.get(url)
+        Raises:
+            BlockedTargetError: The URL is not a fetchable public http(s) target.
+        """
+        # The URL reaches us from an API caller, so validate it before it becomes
+        # a request target (SSRF).
+        safe_url = validate_outbound_url(url, allow_private=allow_private)
+
+        self.logger.info(f"Fetching OpenAPI spec from {scrub(safe_url)}")
+
+        # follow_redirects stays off: a redirect would send us to a location that
+        # never passed validate_outbound_url().
+        async with httpx.AsyncClient(timeout=30.0, follow_redirects=False) as client:
+            response = await client.get(safe_url)
             response.raise_for_status()
 
             content_type = response.headers.get("content-type", "")
             content = response.text
 
-            if "yaml" in content_type or url.endswith((".yaml", ".yml")):
+            if "yaml" in content_type or safe_url.endswith((".yaml", ".yml")):
                 spec = yaml.safe_load(content)
             else:
                 spec = json.loads(content)
 
-        return self._parse_spec(spec, url)
+        return self._parse_spec(spec, safe_url)
 
     def parse_file(self, path: str) -> ParsedAPI:
         """Parse OpenAPI spec from file.
@@ -191,7 +203,7 @@ class OpenAPIParser:
                 )
                 endpoints.append(endpoint)
 
-        self.logger.info(f"Parsed {len(endpoints)} endpoints from {title}")
+        self.logger.info(f"Parsed {len(endpoints)} endpoints from {scrub(title)}")
 
         return ParsedAPI(
             title=title,

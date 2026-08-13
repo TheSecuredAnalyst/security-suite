@@ -3,13 +3,13 @@
 import base64
 import json
 from dataclasses import dataclass, field
-from urllib.parse import urljoin
 
 import httpx
 
 from core import load_wordlist
 from core.logger import get_logger
 from core.models import Finding, ScanResult, Severity, Target
+from core.url_guard import safe_join, validate_outbound_url
 from modules.apisec.openapi_parser import ParsedAPI
 
 
@@ -116,9 +116,13 @@ class APIAuthTester:
         if not protected_endpoints:
             return findings
 
+        # The spec's `servers` block is attacker-controlled; validate it before
+        # it becomes a request target (SSRF).
+        base_url = validate_outbound_url(api.base_url)
+
         async with httpx.AsyncClient(timeout=self.timeout) as client:
             for endpoint in protected_endpoints[:5]:  # Limit testing
-                url = urljoin(api.base_url, endpoint.path)
+                url = safe_join(base_url, endpoint.path)
 
                 # Test without auth
                 try:
@@ -181,9 +185,14 @@ class APIAuthTester:
             )
         ]
 
+        if not auth_endpoints:
+            return findings
+
+        base_url = validate_outbound_url(api.base_url)
+
         async with httpx.AsyncClient(timeout=self.timeout) as client:
             for endpoint in auth_endpoints:
-                url = urljoin(api.base_url, endpoint.path)
+                url = safe_join(base_url, endpoint.path)
 
                 # Test with empty credentials
                 try:
@@ -341,6 +350,8 @@ class APIAuthTester:
         """Test for JWT algorithm confusion vulnerability."""
         findings = []
 
+        base_url = validate_outbound_url(api.base_url)
+
         try:
             # This is a detection test, not exploitation
             parts = token.split(".")
@@ -357,7 +368,7 @@ class APIAuthTester:
             async with httpx.AsyncClient(timeout=self.timeout) as client:
                 for endpoint in api.endpoints[:3]:
                     if endpoint.security:
-                        url = urljoin(api.base_url, endpoint.path)
+                        url = safe_join(base_url, endpoint.path)
                         try:
                             response = await client.request(
                                 method=endpoint.method,
@@ -403,9 +414,11 @@ class APIAuthTester:
         if not auth_endpoints:
             return findings
 
+        base_url = validate_outbound_url(api.base_url)
+
         async with httpx.AsyncClient(timeout=self.timeout) as client:
             for endpoint in auth_endpoints[:2]:
-                url = urljoin(api.base_url, endpoint.path)
+                url = safe_join(base_url, endpoint.path)
 
                 # Send multiple rapid requests
                 responses = []

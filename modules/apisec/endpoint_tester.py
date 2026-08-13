@@ -2,13 +2,13 @@
 
 import re
 from dataclasses import dataclass, field
-from urllib.parse import urljoin
 
 import httpx
 
 from core import load_wordlist
 from core.logger import get_logger
 from core.models import Finding, ScanResult, Severity, Target
+from core.url_guard import safe_join, validate_outbound_url
 from modules.apisec.openapi_parser import APIEndpoint, ParsedAPI
 
 
@@ -147,9 +147,16 @@ class APIEndpointTester:
 
         Returns:
             Test result with findings
+
+        Raises:
+            BlockedTargetError: base_url is not a fetchable public http(s) target.
         """
+        # base_url comes from the `servers` block of a fetched spec, i.e. from
+        # whoever wrote the spec — validate before it becomes a request target.
+        base_url = validate_outbound_url(base_url)
+
         result = EndpointTestResult(endpoint=endpoint)
-        url = urljoin(base_url, endpoint.path)
+        url = safe_join(base_url, endpoint.path)
 
         self.logger.debug(f"Testing {endpoint.method} {url}")
 
@@ -312,7 +319,7 @@ class APIEndpointTester:
         # Replace ID parameters with test values
         for test_id in self.IDOR_TEST_IDS:
             test_path = re.sub(r'\{[^}]*\}', test_id, endpoint.path)
-            url = urljoin(base_url, test_path)
+            url = safe_join(base_url, test_path)
 
             try:
                 response = await self._make_request(
@@ -400,7 +407,7 @@ class APIEndpointTester:
         injection_type: str,
     ) -> Finding | None:
         """Test single injection payload."""
-        url = urljoin(base_url, endpoint.path)
+        url = safe_join(base_url, endpoint.path)
 
         try:
             response = await self._make_request(

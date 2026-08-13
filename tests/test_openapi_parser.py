@@ -339,8 +339,22 @@ class TestParseURL:
 
 
 def _install_fake_client(monkeypatch, text, content_type, raise_for_status=False):
-    """Replace httpx.AsyncClient with a stub returning a canned response."""
+    """Replace httpx.AsyncClient with a stub returning a canned response.
+
+    Also stubs DNS so the SSRF guard in parse_url() sees a public address
+    without the test needing a resolver.
+    """
+    import socket
+
     import httpx
+
+    monkeypatch.setattr(
+        socket,
+        "getaddrinfo",
+        lambda *a, **kw: [
+            (socket.AF_INET, socket.SOCK_STREAM, socket.IPPROTO_TCP, "", ("93.184.216.34", 0))
+        ],
+    )
 
     class FakeResponse:
         def __init__(self):
