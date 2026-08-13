@@ -56,6 +56,11 @@ class Finding(BaseModel):
     data: dict[str, Any] = Field(default_factory=dict)
     timestamp: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     references: list[str] = Field(default_factory=list)
+    entity_id: str | None = Field(
+        default=None,
+        description="Entity this finding is about; resolves to a provenance chain "
+                    "via core.entities.EntityGraph",
+    )
 
 
 class ScanResult(BaseModel):
@@ -77,6 +82,7 @@ class ScanResult(BaseModel):
         severity: Severity = Severity.INFO,
         data: dict[str, Any] | None = None,
         references: list[str] | None = None,
+        entity_id: str | None = None,
     ) -> Finding:
         """Add a finding to the result."""
         finding = Finding(
@@ -86,6 +92,7 @@ class ScanResult(BaseModel):
             source=self.module,
             data=data or {},
             references=references or [],
+            entity_id=entity_id,
         )
         self.findings.append(finding)
         return finding

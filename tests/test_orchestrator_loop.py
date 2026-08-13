@@ -40,7 +40,7 @@ def fake_ollama(monkeypatch):
 @pytest.fixture(autouse=True)
 def no_db_writes(monkeypatch):
     """Neuter the SQLite writes the report writer performs."""
-    for name in ("upsert_run", "upsert_finding", "insert_remediation"):
+    for name in ("upsert_run", "upsert_finding", "insert_remediation", "save_entities"):
         monkeypatch.setattr(f"modules.orchestrator.loop.{name}", MagicMock())
 
 
@@ -524,3 +524,88 @@ class TestDataModels:
             orch._write_report(report)
         files = list((tmp_path / "loop").glob("loop_ENG-9_*.json"))
         assert len(files) == 1
+
+
+class TestEntityProvenance:
+    """The scan phase must record how each CVE was reached."""
+
+    @staticmethod
+    def _scan_result(services):
+        result = ScanResult(target=Target.from_string("10.0.0.5"), module="vulnscan")
+        result.add_finding(
+            title="services", description="d", severity=Severity.INFO,
+            data={"services": services},
+        )
+        return result
+
+    async def _scan(self, orch, services, cves):
+        with patch("modules.orchestrator.loop.NetworkScanner") as NS, \
+             patch("modules.orchestrator.loop.CVELookup") as CL:
+            NS.return_value.run = AsyncMock(return_value=self._scan_result(services))
+            CL.return_value.lookup = AsyncMock(return_value=cves)
+            report = LoopReport(
+                target="10.0.0.5", mode="recon_only", operator="t",
+                engagement_id="E", session_id="s", started_at="now",
+            )
+            await orch._phase_scan("10.0.0.5", "normal", report)
+        return report
+
+    async def test_finding_carries_its_discovery_chain(self, orch, authorized):
+        report = await self._scan(
+            orch,
+            [{"target_ip": "10.0.0.5", "port": 445, "product": "Samba",
+              "name": "microsoft-ds", "version": "4.1", "protocol": "tcp"}],
+            [{"id": "CVE-2017-0144", "cvss_score": 9.8, "description": "eternalblue"}],
+        )
+
+        finding = report.findings[0]
+        assert finding.entity_id
+        assert report.entities.attack_path(finding.entity_id) == (
+            "10.0.0.5 → 10.0.0.5 → 445/tcp microsoft-ds → CVE-2017-0144"
+        )
+
+    async def test_two_services_on_one_host_share_the_host_node(self, orch, authorized):
+        from core.entities import EntityType
+
+        report = await self._scan(
+            orch,
+            [
+                {"target_ip": "10.0.0.5", "port": 445, "product": "Samba",
+                 "name": "microsoft-ds", "version": "4.1", "protocol": "tcp"},
+                {"target_ip": "10.0.0.5", "port": 22, "product": "OpenSSH",
+                 "name": "ssh", "version": "8.2", "protocol": "tcp"},
+            ],
+            [{"id": "CVE-X", "cvss_score": 5.0, "description": ""}],
+        )
+
+        hosts = report.entities.by_type(EntityType.IP_ADDRESS)
+        services = report.entities.by_type(EntityType.SERVICE)
+        assert len(hosts) == 1
+        assert len(services) == 2
+        assert {s.parent_id for s in services} == {hosts[0].id}
+
+    async def test_report_dict_exposes_the_graph_and_paths(self, orch, authorized):
+        report = await self._scan(
+            orch,
+            [{"target_ip": "10.0.0.5", "port": 445, "product": "Samba",
+              "name": "microsoft-ds", "version": "4.1", "protocol": "tcp"}],
+            [{"id": "CVE-2017-0144", "cvss_score": 9.8, "description": ""}],
+        )
+        payload = report.to_dict()
+
+        assert payload["entities"]["stats"]["vulnerability"] == 1
+        assert payload["findings"][0]["attack_path"].endswith("CVE-2017-0144")
+
+    async def test_scan_without_cves_still_records_the_surface(self, orch, authorized):
+        from core.entities import EntityType
+
+        report = await self._scan(
+            orch,
+            [{"target_ip": "10.0.0.5", "port": 9, "name": "discard",
+              "version": "", "protocol": "tcp"}],
+            [],
+        )
+
+        assert report.findings == []
+        assert report.entities.by_type(EntityType.SERVICE)
+        assert report.entities.by_type(EntityType.VULNERABILITY) == []

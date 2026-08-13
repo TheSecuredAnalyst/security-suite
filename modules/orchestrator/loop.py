@@ -27,7 +27,8 @@ import os
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 
-from core.db import insert_remediation, upsert_finding, upsert_run
+from core.db import insert_remediation, save_entities, upsert_finding, upsert_run
+from core.entities import Entity, EntityGraph, EntityType
 from core.guardrails import guardrails
 from core.logger import get_logger, scrub
 from core.models import Target
@@ -61,6 +62,7 @@ class LoopFinding:
     remediation: RemediationScript | None = None
     harden_result: HardenResult | None = None
     verified_closed: bool = False
+    entity_id: str | None = None            # node in LoopReport.entities
 
 
 @dataclass
@@ -87,6 +89,7 @@ class LoopReport:
     findings: list[LoopFinding] = field(default_factory=list)
     audit_log: list[dict] = field(default_factory=list)
     errors: list[str] = field(default_factory=list)
+    entities: EntityGraph = field(default_factory=EntityGraph)
 
     def to_dict(self) -> dict:
         return {
@@ -125,9 +128,13 @@ class LoopReport:
                     "remediation_explanation": f.remediation.explanation if f.remediation else None,
                     "harden_applied": bool(f.harden_result and f.harden_result.success),
                     "verified_closed": f.verified_closed,
+                    "attack_path": (
+                        self.entities.attack_path(f.entity_id) if f.entity_id else ""
+                    ),
                 }
                 for f in self.findings
             ],
+            "entities": self.entities.to_dict(),
             "errors": self.errors,
         }
 
@@ -272,6 +279,13 @@ class RedBlueOrchestrator:
 
     # ── Phases ─────────────────────────────────────────────────────────────────
 
+    @staticmethod
+    def _service_label(service: dict, protocol: str) -> str:
+        """Stable name for a service entity, e.g. "445/tcp microsoft-ds"."""
+        port = service.get("port", 0)
+        name = service.get("name") or service.get("service") or "unknown"
+        return f"{port}/{protocol} {name}".strip()
+
     async def _phase_scan(self, target: str, profile: str, report: LoopReport) -> list[dict]:
         """RED-1: Network scan + CVE lookup per service."""
         logger.info(f"[RED-1] Scanning {scrub(target)} (profile: {scrub(profile)})")
@@ -279,6 +293,11 @@ class RedBlueOrchestrator:
             scanner = NetworkScanner(profile=profile, max_parallel=25)
             scan_target = Target(value=target, target_type="ip" if "/" not in target else "ip")
             scan_result = await scanner.run(scan_target)
+
+            # The scope root every discovery below hangs off.
+            root = report.entities.add(
+                Entity.root(target, EntityType.TARGET, "orchestrator")
+            )
 
             # Collect services from findings.
             # NetworkScanner packs services inside finding.data['services'] as a list,
@@ -292,13 +311,32 @@ class RedBlueOrchestrator:
                     if ip:
                         ips.add(ip)
                     # Normalise field names for the rest of the pipeline
-                    services.append({
+                    normalised = {
                         "ip":      ip,
                         "port":    svc.get("port", 0),
                         "service": svc.get("product") or svc.get("name", ""),
                         "name":    svc.get("name", ""),
                         "version": svc.get("version", ""),
-                    })
+                    }
+
+                    # target → host → service, so anything found on this service
+                    # can name the path that led to it.
+                    host = report.entities.add(root.child(
+                        EntityType.IP_ADDRESS, ip or target, "vulnscan.scanner",
+                    ))
+                    service_entity = report.entities.add(host.child(
+                        EntityType.SERVICE,
+                        self._service_label(normalised, svc.get("protocol", "tcp")),
+                        "vulnscan.scanner",
+                        data={
+                            "port": normalised["port"],
+                            "protocol": svc.get("protocol", "tcp"),
+                            "product": normalised["service"],
+                            "version": normalised["version"],
+                        },
+                    ))
+                    normalised["entity_id"] = service_entity.id
+                    services.append(normalised)
 
             report.total_hosts = len(ips)
             report.total_services = len(services)
@@ -329,6 +367,18 @@ class RedBlueOrchestrator:
                             cve_id=cve.get("id") or cve.get("cve_id", ""),
                             cvss_score=cvss,
                         )
+
+                        # Hang the CVE off the service it was found on, so the
+                        # finding carries its own discovery chain.
+                        service_entity = report.entities.get(svc.get("entity_id", ""))
+                        if service_entity and lf.cve_id:
+                            cve_entity = report.entities.add(service_entity.child(
+                                EntityType.VULNERABILITY,
+                                lf.cve_id,
+                                "vulnscan.cve_lookup",
+                                data={"cvss_score": cvss, "product": product},
+                            ))
+                            lf.entity_id = cve_entity.id
                         # ATT&CK tagging
                         tags = MITREMapper.tag_finding(
                             cve.get("description", ""),
@@ -684,6 +734,8 @@ class RedBlueOrchestrator:
             "errors": report.errors,
             "report_path": report_path,
         })
+
+        save_entities(report.session_id, report.entities)
 
         # Persist unique confirmed findings (already deduped by ip+port in the run)
         seen: set[tuple] = set()
