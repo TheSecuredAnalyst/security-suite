@@ -20,7 +20,7 @@ The project is pre-1.0 and moves quickly. Security fixes are applied to the
 **Please do not open a public issue for security vulnerabilities.**
 
 Report privately through GitHub's
-[private vulnerability reporting](https://github.com/53cur3dL34rn/security-suite/security/advisories/new)
+[private vulnerability reporting](https://github.com/TheSecuredAnalyst/security-suite/security/advisories/new)
 (the **Security → Advisories → Report a vulnerability** button on the repo).
 This keeps the details confidential until a fix is available.
 

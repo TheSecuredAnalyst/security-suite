@@ -549,7 +549,7 @@ secsuite osint dns example.com --verbose
 ```
 
 **Report a bug:**  
-Open an issue at https://github.com/53cur3dL34rn/security-suite/issues  
+Open an issue at https://github.com/TheSecuredAnalyst/security-suite/issues  
 Include:
 - Your operating system and version
 - The exact command you ran

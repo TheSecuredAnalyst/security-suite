@@ -10,14 +10,14 @@ Run the setup script for your operating system. It handles everything automatica
 
 **Linux / macOS**
 ```bash
-git clone https://github.com/53cur3dL34rn/security-suite.git
+git clone https://github.com/TheSecuredAnalyst/security-suite.git
 cd security-suite
 bash setup.sh
 ```
 
 **Windows (PowerShell)**
 ```powershell
-git clone https://github.com/53cur3dL34rn/security-suite.git
+git clone https://github.com/TheSecuredAnalyst/security-suite.git
 cd security-suite
 powershell -ExecutionPolicy Bypass -File setup.ps1
 ```

@@ -1616,7 +1616,7 @@ def version():
     console.print("[dim]Reconnaissance • Web Security • API Testing • AI Analysis[/dim]")
     console.print()
     console.print("Created by [bold red]TheSecuredAnalyst[/bold red]")
-    console.print("https://github.com/53cur3dL34rn/security-suite")
+    console.print("https://github.com/TheSecuredAnalyst/security-suite")
 
 
 @app.command()
