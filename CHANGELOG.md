@@ -17,6 +17,12 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   the full provenance chain (`10.0.0.5 → 445/tcp → CVE-2017-0144`). Ships with a
   starter pack of five rules (three migrated from the previously hardcoded attack
   patterns, plus two provenance-aware ones) and a contributor guide.
+- **Entity-graph builder (`modules/correlation/graph_builder.py`)** that turns a
+  run's scan results into a provenance graph (`target → host → service/url/
+  vulnerability`), so **`secsuite correlate` now activates host-scoped rules
+  live** — findings trace to a shared host anchor and correlations carry the
+  chain that led to them. Rules can anchor on multiple host types
+  (`[ip_address, hostname, domain]`).
 - **`secsuite correlate <target>`** to run the rules over a scan, and
   **`secsuite rules list` / `secsuite rules validate`** to inspect and validate
   the rule library (including contributed rules).

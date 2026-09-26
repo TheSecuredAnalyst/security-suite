@@ -6,6 +6,7 @@ The engine evaluates them over a run's findings and its entity graph.
 """
 
 from .engine import CorrelationEngine
+from .graph_builder import build_graph
 from .rules import (
     Correlation,
     CorrelationRule,
@@ -22,6 +23,7 @@ __all__ = [
     "CorrelationRule",
     "FindingPredicate",
     "MatchSpec",
+    "build_graph",
     "bundled_rules_dir",
     "load_rule_file",
     "load_rules",

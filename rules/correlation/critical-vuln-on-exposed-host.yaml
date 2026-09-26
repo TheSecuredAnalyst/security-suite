@@ -8,7 +8,7 @@ severity: critical
 mitre: [TA0001]
 match:
   same_host: true
-  anchor: ip_address
+  anchor: [ip_address, hostname, domain]
   anchor_in_scope: true
   all_of:
     - entity_type: service

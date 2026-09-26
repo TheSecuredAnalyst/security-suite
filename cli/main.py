@@ -2148,20 +2148,25 @@ def correlate(
     """
     from pathlib import Path as _Path
 
-    from modules.correlation import CorrelationEngine
+    from modules.correlation import CorrelationEngine, build_graph
     from modules.correlation.rules import _SEVERITY_RANK
 
     setup_logging()
     console.print(f"[bold]Correlation:[/bold] {target}")
 
-    results = _collect_scan_results(target, ["dns", "headers", "tech", "ssl", "ports", "dirs"])
+    # Run a module set broad enough to feed both flat and host-scoped rules:
+    # services (ports) plus injection findings (xss/sqli) share a host anchor.
+    results = _collect_scan_results(
+        target, ["dns", "headers", "tech", "ssl", "ports", "dirs", "xss", "sqli"]
+    )
     findings = [f for r in results for f in r.findings]
+
+    # Build a provenance graph so host-scoped rules can trace findings to a host.
+    graph = build_graph(target, results)
 
     extra = [_Path(rules_dir)] if rules_dir else []
     engine = CorrelationEngine.from_dirs(*extra)
-    # NOTE: today's scanners emit a flat finding list, so host-scoped rules stay
-    # dormant until producers populate the EntityGraph (tracked follow-up).
-    correlations = engine.evaluate(findings)
+    correlations = engine.evaluate(findings, graph)
 
     if not correlations:
         console.print("[green]No correlations fired.[/green]")

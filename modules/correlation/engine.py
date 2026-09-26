@@ -93,10 +93,10 @@ class CorrelationEngine:
         if graph is None:
             return []  # host-scoped rules are meaningless without provenance
 
-        anchor_type = rule.match.anchor
+        anchor_types = rule.match.anchor_types()
         grouped: dict[str, list[Finding]] = {}
         for finding in findings:
-            anchor = self._anchor_of(finding, graph, anchor_type)
+            anchor = self._anchor_of(finding, graph, anchor_types)
             if anchor is None:
                 continue
             if rule.match.anchor_in_scope and not anchor.in_scope:
@@ -149,16 +149,21 @@ class CorrelationEngine:
 
     @staticmethod
     def _anchor_of(
-        finding: Finding, graph: EntityGraph, anchor_type: EntityType
+        finding: Finding, graph: EntityGraph, anchor_types: list[EntityType]
     ) -> Entity | None:
-        """The anchor-typed ancestor of the entity a finding is about, if any."""
+        """The nearest ancestor of an accepted anchor type, walking root→leaf.
+
+        Ancestry is returned root-first, so the first match is the highest such
+        entity — the host, not a sub-host node of the same accepted type.
+        """
         if not finding.entity_id:
             return None
         entity = graph.get(finding.entity_id)
         if entity is None:
             return None
+        wanted = set(anchor_types)
         for ancestor in graph.ancestry(entity):
-            if ancestor.entity_type == anchor_type:
+            if ancestor.entity_type in wanted:
                 return ancestor
         return None
 

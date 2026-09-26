@@ -84,14 +84,19 @@ class MatchSpec(BaseModel):
         description="When true, all predicates must be satisfied by findings that trace back to "
         "the SAME anchor entity in the entity graph (requires a graph).",
     )
-    anchor: EntityType = Field(
+    anchor: EntityType | list[EntityType] = Field(
         default=EntityType.IP_ADDRESS,
-        description="The entity type findings are grouped under when same_host is true.",
+        description="Entity type(s) findings are grouped under when same_host is true. A list "
+        "lets one rule anchor on whichever host type a run produced (e.g. [ip_address, domain]).",
     )
     anchor_in_scope: bool = Field(
         default=True,
         description="When same_host is true, only anchors marked in_scope are considered.",
     )
+
+    def anchor_types(self) -> list[EntityType]:
+        """The anchor spec normalised to a list, preserving order (first wins)."""
+        return self.anchor if isinstance(self.anchor, list) else [self.anchor]
 
 
 class CorrelationRule(BaseModel):

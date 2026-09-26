@@ -49,8 +49,9 @@ to satisfy it. A rule fires only when **every** predicate is satisfied.
 - **host-scoped** (`same_host: true`) — predicates must be satisfied by findings
   that trace back to the **same anchor entity** in the entity graph. The result
   carries that anchor and the full provenance chain
-  (`10.0.0.5 → 445/tcp → CVE-2017-0144`). Requires producers to populate the
-  entity graph; host-scoped rules stay dormant until they do.
+  (`10.0.0.5 → 445/tcp → CVE-2017-0144`). The `secsuite correlate` path builds
+  this graph from the scan results automatically; host-scoped rules stay dormant
+  only where no graph is supplied.
 
 ## Contributing a rule
 
