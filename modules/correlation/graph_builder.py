@@ -93,19 +93,34 @@ def _classify(finding: Finding, host: Entity, graph: EntityGraph) -> Entity:
     return host
 
 
-def build_graph(target: str, results: list[ScanResult]) -> EntityGraph:
-    """Build a provenance graph from scan results, setting each finding's entity_id.
-
-    Mutates the findings in ``results`` (sets ``entity_id``) and returns the graph.
-    """
-    graph = EntityGraph()
+def _ensure_host(graph: EntityGraph, target: str) -> Entity:
+    """Reuse a scanner-emitted host root, or create one for the heuristic path."""
+    roots = graph.roots()
+    if roots:
+        return roots[0]
     host_type, host_value = _host_anchor(target)
     # The host is the root: a single-target run has one host, and a separate
     # TARGET wrapper with the same value would just double up in every chain.
-    host = graph.add(Entity.root(host_value, host_type, _PRODUCER))
+    return graph.add(Entity.root(host_value, host_type, _PRODUCER))
+
+
+def build_graph(target: str, results: list[ScanResult]) -> EntityGraph:
+    """Build a provenance graph from scan results, setting each finding's entity_id.
+
+    Entities a scanner emitted natively (``ScanResult.entities``) are authoritative
+    and used as-is; findings a scanner did not link are then attributed
+    heuristically. Mutates unlinked findings (sets ``entity_id``) and returns the
+    graph.
+    """
+    emitted = [e for result in results for e in result.entities]
+    graph = EntityGraph.from_entities(emitted) if emitted else EntityGraph()
+    host = _ensure_host(graph, target)
 
     for result in results:
         for finding in result.findings:
+            # Respect a link the scanner already made.
+            if finding.entity_id and graph.get(finding.entity_id) is not None:
+                continue
             entity = _classify(finding, host, graph)
             finding.entity_id = entity.id
 

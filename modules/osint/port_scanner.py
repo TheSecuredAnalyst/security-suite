@@ -6,6 +6,7 @@ import shutil
 import tempfile
 import xml.etree.ElementTree as ET
 
+from core.entities import Entity, EntityType
 from core.models import ScanResult, Severity, Target
 from modules.osint.base import OSINTModule
 
@@ -184,12 +185,37 @@ class PortScanner(OSINTModule):
             if os_detection:
                 result.raw_data["os_detection"] = os_detection
 
+            # Emit a provenance graph natively: host -> service, so correlation
+            # can trace findings to this host without the graph builder's
+            # heuristics. Findings below link to the entities they are about.
+            host_entity: Entity | None = None
+            first_service: Entity | None = None
+            if open_ports or os_detection:
+                host_type = (
+                    EntityType.IP_ADDRESS
+                    if result.target.target_type == "ip"
+                    else EntityType.HOSTNAME
+                )
+                host_entity = result.add_entity(
+                    Entity.root(result.target.value, host_type, result.module)
+                )
+                for svc in services:
+                    label = (
+                        f"{svc['port']}/{svc.get('protocol', 'tcp')} "
+                        f"{svc.get('product') or svc.get('service', '')}"
+                    ).strip()
+                    service_entity = result.add_entity(
+                        host_entity.child(EntityType.SERVICE, label, result.module, data=svc)
+                    )
+                    first_service = first_service or service_entity
+
             if open_ports:
                 result.add_finding(
                     title="Open Ports Discovered",
                     description=f"Found {len(open_ports)} open port(s)",
                     severity=Severity.INFO,
                     data={"ports": open_ports, "services": services},
+                    entity_id=(first_service or host_entity).id if host_entity else None,
                 )
 
                 risky_ports = {
@@ -208,6 +234,7 @@ class PortScanner(OSINTModule):
                         description=f"Found {len(found_risky)} service(s) that may pose security risks",
                         severity=Severity.MEDIUM,
                         data={"services": found_risky},
+                        entity_id=host_entity.id if host_entity else None,
                     )
 
             # Add OS detection finding if available
@@ -217,6 +244,7 @@ class PortScanner(OSINTModule):
                     description=f"Detected OS: {os_detection['name']} (Accuracy: {os_detection['accuracy']}%)",
                     severity=Severity.INFO,
                     data=os_detection,
+                    entity_id=host_entity.id if host_entity else None,
                 )
 
         except ET.ParseError as e:

@@ -6,6 +6,8 @@ from typing import Any
 
 from pydantic import BaseModel, Field
 
+from core.entities import Entity
+
 
 class Severity(str, Enum):
     """Severity levels for findings."""
@@ -72,6 +74,12 @@ class ScanResult(BaseModel):
     started_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     completed_at: datetime | None = None
     findings: list[Finding] = Field(default_factory=list)
+    entities: list[Entity] = Field(
+        default_factory=list,
+        description="Provenance entities a scanner discovered, with findings linked via "
+        "Finding.entity_id. Optional: scanners that don't emit these are covered by the "
+        "correlation graph builder's heuristics.",
+    )
     raw_data: dict[str, Any] = Field(default_factory=dict)
     errors: list[str] = Field(default_factory=list)
 
@@ -96,6 +104,11 @@ class ScanResult(BaseModel):
         )
         self.findings.append(finding)
         return finding
+
+    def add_entity(self, entity: Entity) -> Entity:
+        """Record a discovered provenance entity, returning it for chaining."""
+        self.entities.append(entity)
+        return entity
 
     def complete(self) -> None:
         """Mark the scan as complete."""

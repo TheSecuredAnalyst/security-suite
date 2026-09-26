@@ -4,6 +4,18 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- **Native entity emission for scanners.** `ScanResult` now carries an optional
+  `entities` list, so a scanner can emit its provenance graph directly (host →
+  service …) and link findings to it, instead of relying on the correlation
+  graph builder's heuristics. `build_graph` treats scanner-emitted entities as
+  authoritative and only falls back to heuristics for findings a scanner didn't
+  link — fully backward-compatible. `PortScanner` is the first scanner converted
+  (emits a host and its services from the nmap parse).
+
 ## [0.4.0] - 2026-09-26
 
 ### Added
