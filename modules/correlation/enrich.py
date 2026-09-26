@@ -25,7 +25,8 @@ CVE_SOURCE_MODULE = "vulnscan.cve_lookup"
 class _Lookup(Protocol):
     async def lookup(
         self, product: str, version: str = "", service_name: str = ""
-    ) -> list[dict[str, Any]]: ...
+    ) -> list[dict[str, Any]]:
+        """Return CVE dicts for a product/version (the CVELookup interface)."""
 
 
 def cvss_to_severity(score: float) -> Severity:

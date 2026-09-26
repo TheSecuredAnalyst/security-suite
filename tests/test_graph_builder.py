@@ -70,7 +70,8 @@ def test_injection_rule_fires_end_to_end_from_scan_results():
 
     assert len(fired) == 1
     assert fired[0].anchor == "example.com"
-    assert "example.com" in fired[0].attack_path
+    # The chain starts at the host root.
+    assert fired[0].attack_path.split(" → ")[0] == "example.com"
 
 
 def test_low_severity_injection_does_not_fire():
