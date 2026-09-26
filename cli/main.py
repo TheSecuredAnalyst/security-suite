@@ -2139,6 +2139,7 @@ def correlate(
     target: str = typer.Argument(..., help="Target to scan and correlate"),
     rules_dir: str = typer.Option(None, "--rules", "-r", help="Extra directory of correlation rule YAML"),
     json_out: str = typer.Option(None, "--json", help="Write the correlations to a JSON file"),
+    cves: bool = typer.Option(True, "--cves/--no-cves", help="Look up CVEs for discovered services (adds a network lookup)"),
 ):
     """Run correlation rules over a target's findings to surface attack paths.
 
@@ -2159,6 +2160,17 @@ def correlate(
     results = _collect_scan_results(
         target, ["dns", "headers", "tech", "ssl", "ports", "dirs", "xss", "sqli"]
     )
+
+    # Look up CVEs for the services the port scan found, so vulnerability-based
+    # rules (e.g. critical-vuln-on-exposed-host) have inputs.
+    if cves:
+        from modules.correlation import enrich_with_cves
+
+        console.print("[dim]Looking up CVEs for discovered services...[/dim]")
+        cve_result = run_async(enrich_with_cves(target, results))
+        if cve_result:
+            results.append(cve_result)
+
     findings = [f for r in results for f in r.findings]
 
     # Build a provenance graph so host-scoped rules can trace findings to a host.

@@ -23,6 +23,11 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   live** — findings trace to a shared host anchor and correlations carry the
   chain that led to them. Rules can anchor on multiple host types
   (`[ip_address, hostname, domain]`).
+- **CVE enrichment in `correlate` (`modules/correlation/enrich.py`).** Looks up
+  CVEs for the services the port scan discovered and nests each under its service
+  in the graph (`host → 445/tcp → CVE-2017-0144`), so vulnerability-based rules
+  like `critical-vuln-on-exposed-host` fire in the CLI path too. Toggle with
+  `--cves/--no-cves`.
 - **`secsuite correlate <target>`** to run the rules over a scan, and
   **`secsuite rules list` / `secsuite rules validate`** to inspect and validate
   the rule library (including contributed rules).

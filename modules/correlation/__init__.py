@@ -6,6 +6,7 @@ The engine evaluates them over a run's findings and its entity graph.
 """
 
 from .engine import CorrelationEngine
+from .enrich import enrich_with_cves
 from .graph_builder import build_graph
 from .rules import (
     Correlation,
@@ -24,6 +25,7 @@ __all__ = [
     "FindingPredicate",
     "MatchSpec",
     "build_graph",
+    "enrich_with_cves",
     "bundled_rules_dir",
     "load_rule_file",
     "load_rules",

@@ -42,6 +42,16 @@ def _service_label(data: dict[str, Any]) -> str | None:
     return f"{port}/{proto} {name}".strip()
 
 
+def _service_for_port(port: Any, host: Entity, graph: EntityGraph) -> Entity | None:
+    """An existing SERVICE child of the host whose data port matches, if any."""
+    if port is None:
+        return None
+    for child in graph.children(host):
+        if child.entity_type == EntityType.SERVICE and child.data.get("port") == port:
+            return child
+    return None
+
+
 def _classify(finding: Finding, host: Entity, graph: EntityGraph) -> Entity:
     """Create (or reuse) the entity a finding is about and return it.
 
@@ -67,10 +77,12 @@ def _classify(finding: Finding, host: Entity, graph: EntityGraph) -> Entity:
             host.child(EntityType.SERVICE, _service_label(data) or finding.title, source, data=data)
         )
 
-    # CVE / vulnerability findings -> VULNERABILITY node under the host.
+    # CVE / vulnerability findings -> VULNERABILITY node, nested under the
+    # matching service when the finding names a port, else under the host.
     if "cve" in source or "vuln" in source:
         label = data.get("cve_id") or data.get("id") or finding.title
-        return graph.add(host.child(EntityType.VULNERABILITY, label, source, data=data))
+        parent = _service_for_port(data.get("port"), host, graph) or host
+        return graph.add(parent.child(EntityType.VULNERABILITY, label, source, data=data))
 
     # Web findings -> a URL node (all web findings on one target share it).
     if source.startswith("webscanner"):
