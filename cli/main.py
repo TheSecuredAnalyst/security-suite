@@ -166,6 +166,8 @@ app.add_typer(vuln_app, name="vuln")
 app.add_typer(threat_app, name="threat")
 app.add_typer(password_app, name="password")
 app.add_typer(audit_app, name="audit")
+rules_app = typer.Typer(help="Correlation rule library (list / validate contributed rules)")
+app.add_typer(rules_app, name="rules")
 
 
 def run_async(coro):
@@ -2130,6 +2132,131 @@ def password_batch(
         else:
             auditor.export_json(results, output)
         console.print(f"\n[green]Results saved: {output}[/green]")
+
+
+@app.command("correlate")
+def correlate(
+    target: str = typer.Argument(..., help="Target to scan and correlate"),
+    rules_dir: str = typer.Option(None, "--rules", "-r", help="Extra directory of correlation rule YAML"),
+    json_out: str = typer.Option(None, "--json", help="Write the correlations to a JSON file"),
+):
+    """Run correlation rules over a target's findings to surface attack paths.
+
+    Loads the bundled rule pack (plus any --rules directory) and reports each
+    correlation that fires, with its evidence and — for host-scoped rules — the
+    provenance chain that led there.
+    """
+    from pathlib import Path as _Path
+
+    from modules.correlation import CorrelationEngine
+    from modules.correlation.rules import _SEVERITY_RANK
+
+    setup_logging()
+    console.print(f"[bold]Correlation:[/bold] {target}")
+
+    results = _collect_scan_results(target, ["dns", "headers", "tech", "ssl", "ports", "dirs"])
+    findings = [f for r in results for f in r.findings]
+
+    extra = [_Path(rules_dir)] if rules_dir else []
+    engine = CorrelationEngine.from_dirs(*extra)
+    # NOTE: today's scanners emit a flat finding list, so host-scoped rules stay
+    # dormant until producers populate the EntityGraph (tracked follow-up).
+    correlations = engine.evaluate(findings)
+
+    if not correlations:
+        console.print("[green]No correlations fired.[/green]")
+        console.print(
+            f"[dim]{len(findings)} findings across {len(results)} scans; "
+            f"{len(engine.rules)} rules evaluated.[/dim]"
+        )
+        return
+
+    sev_color = {"critical": "red", "high": "red", "medium": "yellow", "low": "blue", "info": "green"}
+    for c in sorted(correlations, key=lambda x: _SEVERITY_RANK[x.severity], reverse=True):
+        color = sev_color.get(c.severity.value, "white")
+        body = c.description.strip()
+        if c.attack_path:
+            body += f"\n\n[bold]Path:[/bold] {c.attack_path}"
+        elif c.anchor:
+            body += f"\n\n[bold]Host:[/bold] {c.anchor}"
+        body += f"\n[dim]Evidence: {', '.join(f.title for f in c.evidence)}[/dim]"
+        if c.mitre:
+            body += f"\n[dim]MITRE: {', '.join(c.mitre)}[/dim]"
+        console.print(Panel(body, title=f"[{color}]{c.severity.value.upper()}[/{color}] {c.name}"))
+
+    if json_out:
+        import json as _json
+        from pathlib import Path as _Path
+
+        payload = [
+            {
+                "rule_id": c.rule_id,
+                "name": c.name,
+                "severity": c.severity.value,
+                "description": c.description,
+                "anchor": c.anchor,
+                "attack_path": c.attack_path,
+                "mitre": c.mitre,
+                "references": c.references,
+                "evidence": [f.title for f in c.evidence],
+            }
+            for c in correlations
+        ]
+        _Path(json_out).write_text(_json.dumps(payload, indent=2))
+        console.print(f"[green]Wrote {len(correlations)} correlations to {json_out}[/green]")
+
+
+@rules_app.command("list")
+def rules_list(
+    rules_dir: str = typer.Option(None, "--rules", "-r", help="Also include rules from this directory"),
+):
+    """List every loaded correlation rule."""
+    from pathlib import Path as _Path
+
+    from modules.correlation import load_rules
+
+    extra = [_Path(rules_dir)] if rules_dir else []
+    rules = load_rules(*extra)
+
+    table = Table(title=f"Correlation rules ({len(rules)})")
+    table.add_column("ID", style="cyan")
+    table.add_column("Severity")
+    table.add_column("Scope")
+    table.add_column("Name")
+    for r in sorted(rules, key=lambda x: x.id):
+        scope = "host" if r.match.same_host else "flat"
+        table.add_row(r.id, r.severity.value, scope, r.name)
+    console.print(table)
+
+
+@rules_app.command("validate")
+def rules_validate(
+    rules_dir: str = typer.Argument(..., help="Directory of correlation rule YAML to validate"),
+):
+    """Validate a directory of contributed rule files (exit 1 on any error)."""
+    from pathlib import Path as _Path
+
+    from modules.correlation.rules import load_rule_file
+
+    directory = _Path(rules_dir)
+    if not directory.is_dir():
+        console.print(f"[red]Not a directory: {rules_dir}[/red]")
+        raise typer.Exit(2)
+
+    ok = 0
+    failed = False
+    for fpath in sorted(directory.glob("*.y*ml")):
+        try:
+            n = len(load_rule_file(fpath))
+            ok += n
+            console.print(f"[green]✓[/green] {fpath.name} ({n} rule(s))")
+        except ValueError as exc:
+            failed = True
+            console.print(f"[red]✗[/red] {exc}")
+
+    if failed:
+        raise typer.Exit(1)
+    console.print(f"[green]All valid: {ok} rule(s).[/green]")
 
 
 if __name__ == "__main__":

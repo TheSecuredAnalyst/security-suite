@@ -1,0 +1,16 @@
+id: critical-vuln-on-exposed-host
+name: Critical vulnerability on an internet-exposed host
+description: >-
+  The same in-scope host exposes a network service AND carries a high or
+  critical vulnerability. Provenance ties the vulnerability back to the exposed
+  host, so this is a directly reachable, high-impact target.
+severity: critical
+mitre: [TA0001]
+match:
+  same_host: true
+  anchor: ip_address
+  anchor_in_scope: true
+  all_of:
+    - entity_type: service
+    - entity_type: vulnerability
+      min_severity: high

@@ -1,0 +1,16 @@
+id: injection-on-live-host
+name: Injection vulnerability on a live host
+description: >-
+  A discovered service and a high-severity injection finding (SQLi/XSS) resolve
+  to the same in-scope host — an exploitable web flaw on a confirmed live
+  target, not an isolated scanner hit.
+severity: high
+mitre: [TA0001, TA0002]
+match:
+  same_host: true
+  anchor: ip_address
+  anchor_in_scope: true
+  all_of:
+    - entity_type: service
+    - sources: ["webscanner.sqli", "webscanner.xss"]
+      min_severity: high

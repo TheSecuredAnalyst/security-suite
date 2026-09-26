@@ -1,0 +1,11 @@
+id: exposed-service-attack
+name: Exposed service with known exploit
+description: >-
+  A service was discovered by port scanning or Shodan and a matching public
+  exploit was found — an exposed service that can likely be attacked directly.
+severity: high
+mitre: [TA0043, TA0001]
+match:
+  all_of:
+    - sources: ["osint.port_scan", "osint.shodan", "ports"]
+    - sources: ["exploit.*", "exploit_engine.*"]

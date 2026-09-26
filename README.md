@@ -88,6 +88,7 @@ source venv/bin/activate
 | **Web Scanner** | XSS, SQLi, directory bruteforce, SSL/TLS analysis, crawling | Nuclei |
 | **API Security** | OpenAPI parsing, auth bypass, JWT testing, BOLA/IDOR, fuzzing | REST API |
 | **AI Analysis** | Finding correlation, executive summaries, interactive LLM remediation | Ollama, Anthropic, OpenAI |
+| **Correlation** | Turns co-occurring findings into provenance-aware attack paths via community-contributable YAML rules | `rules/correlation/` |
 | **REST API** | Trigger scans and retrieve results programmatically via HTTP | FastAPI |
 | **SIEM** | Splunk, Elasticsearch, Syslog, webhooks (Slack/Discord/PagerDuty) | CEF/LEEF |
 | **Scheduler** | Cron-based recurring scans with persistent history | — |
@@ -207,6 +208,23 @@ Core features work without any API keys. For local AI with no keys, use Ollama (
 ---
 
 ## Usage
+
+### Correlation
+
+Turn a pile of findings into attack paths. Correlation rules are declarative YAML
+(`rules/correlation/`), so anyone can contribute a detection — no code required.
+
+```bash
+secsuite correlate example.com              # run the rule pack over a scan
+secsuite correlate example.com --json out.json
+secsuite rules list                         # show loaded rules (bundled + custom)
+secsuite rules validate rules/correlation   # validate a rule directory
+secsuite correlate example.com --rules ./my-rules   # add your own rules
+```
+
+Host-scoped rules report the provenance chain that led to each result, e.g.
+`10.0.0.5 → 445/tcp → CVE-2017-0144`. See [`rules/correlation/README.md`](rules/correlation/README.md)
+to write your own.
 
 ### OSINT Reconnaissance
 

@@ -1,0 +1,13 @@
+id: web-app-compromise
+name: Web application compromise path
+description: >-
+  Reconnaissance, content discovery, and an injection finding were all seen
+  against the target — the ingredients of a path from recon to code execution
+  through the web application.
+severity: high
+mitre: [TA0043, TA0001, TA0002]
+match:
+  all_of:
+    - sources: ["osint.*", "tech_detect", "tech"]
+    - sources: ["webscanner.crawler", "webscanner.dirbrute", "webscanner.dir_bruteforce"]
+    - sources: ["webscanner.xss", "webscanner.sqli"]
