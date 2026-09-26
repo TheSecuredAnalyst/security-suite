@@ -226,6 +226,12 @@ Host-scoped rules report the provenance chain that led to each result, e.g.
 `10.0.0.5 → 445/tcp → CVE-2017-0144`. See [`rules/correlation/README.md`](rules/correlation/README.md)
 to write your own.
 
+See it with no target or setup — a scripted run that prints real attack paths:
+
+```bash
+python examples/correlation_demo.py
+```
+
 ### OSINT Reconnaissance
 
 ```bash

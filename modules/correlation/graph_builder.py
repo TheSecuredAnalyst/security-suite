@@ -5,10 +5,10 @@ but the ad-hoc ``secsuite correlate`` path just has a list of
 :class:`~core.models.ScanResult`. This turns that flat output into a provenance
 graph so host-scoped correlation rules can fire.
 
-For a single-target correlate run everything hangs under one host anchor
-(``target → host → service/url/vulnerability``); per-IP hosts across a netblock
-are the orchestrator's job, not this one. Each finding's ``entity_id`` is set to
-the node it produced, so a correlation can name the chain that led to it.
+For a single-target correlate run everything hangs under one host root
+(``host → service/url/vulnerability``); per-IP hosts across a netblock are the
+orchestrator's job, not this one. Each finding's ``entity_id`` is set to the
+node it produced, so a correlation can name the chain that led to it.
 """
 
 from __future__ import annotations
@@ -99,9 +99,10 @@ def build_graph(target: str, results: list[ScanResult]) -> EntityGraph:
     Mutates the findings in ``results`` (sets ``entity_id``) and returns the graph.
     """
     graph = EntityGraph()
-    root = graph.add(Entity.root(target, EntityType.TARGET, _PRODUCER))
     host_type, host_value = _host_anchor(target)
-    host = graph.add(root.child(host_type, host_value, _PRODUCER))
+    # The host is the root: a single-target run has one host, and a separate
+    # TARGET wrapper with the same value would just double up in every chain.
+    host = graph.add(Entity.root(host_value, host_type, _PRODUCER))
 
     for result in results:
         for finding in result.findings:
