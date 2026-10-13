@@ -6,6 +6,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-10-13
+
 ### Fixed
 
 - **CVE lookup now filters by affected product and version, not just keywords.**
@@ -166,5 +168,9 @@ CI pipeline, supply-chain scanning, and a large jump in test coverage.
   compliance checks, phishing simulation, SIEM integration, REST API, and
   AI-powered analysis.
 
+[Unreleased]: https://github.com/TheSecuredAnalyst/security-suite/compare/v0.5.0...HEAD
+[0.5.0]: https://github.com/TheSecuredAnalyst/security-suite/compare/v0.4.0...v0.5.0
+[0.4.0]: https://github.com/TheSecuredAnalyst/security-suite/compare/v0.3.0...v0.4.0
+[0.3.0]: https://github.com/TheSecuredAnalyst/security-suite/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/TheSecuredAnalyst/security-suite/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/TheSecuredAnalyst/security-suite/releases/tag/v0.1.0
