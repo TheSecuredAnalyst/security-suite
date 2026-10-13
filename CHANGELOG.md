@@ -6,6 +6,20 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Fixed
+
+- **CVE lookup now filters by affected product and version, not just keywords.**
+  NVD keyword search returns any CVE whose *text* mentions a product name, so a
+  scan of nginx or Gunicorn previously reported critical CVEs that were actually
+  about Authelia, zzcms, Pulpcore or NGINX Unit. `cve_lookup` now checks each
+  result against its own CPE configuration (the authoritative affected-product
+  and version-range data) and drops CVEs whose CPEs name a different product or
+  a version range the detected version is outside. When a CVE has no CPE data
+  yet (common for very recent CVEs), it falls back to confirming the product is
+  the subject of the description. On a real server scan this cut matches from 20
+  (all false) to 9, surfacing the genuinely applicable CVEs. Version comparison
+  understands patch suffixes (OpenSSH `9.6p1` ≥ `9.6`).
+
 ### Added
 
 - **Native entity emission for scanners.** `ScanResult` now carries an optional

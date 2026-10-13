@@ -191,7 +191,8 @@ class TestLookup:
         q.assert_not_called()
 
     async def test_product_version_hit_returns_sorted(self, lookup):
-        raw = [_vuln("CVE-2020-1", score=7.0), _vuln("CVE-2021-2", score=9.5)]
+        raw = [_vuln("CVE-2020-1", score=7.0, desc="CustomApp before 3.0 has a flaw"),
+               _vuln("CVE-2021-2", score=9.5, desc="CustomApp remote code execution")]
         with patch("modules.vulnscan.cve_lookup._nvd_query",
                    AsyncMock(return_value=raw)) as q:
             result = await lookup.lookup("CustomApp", "2.0")
@@ -200,7 +201,7 @@ class TestLookup:
 
     async def test_falls_back_to_normalised_version(self, lookup):
         # Step 1 (raw "OpenApp 8.4p1") returns nothing; 1b ("OpenApp 8.4") hits.
-        responses = [[], [_vuln("CVE-2021-9", score=8.0)]]
+        responses = [[], [_vuln("CVE-2021-9", score=8.0, desc="OpenApp 8.4 buffer overflow")]]
         with patch("modules.vulnscan.cve_lookup._nvd_query",
                    AsyncMock(side_effect=responses)) as q:
             result = await lookup.lookup("OpenApp", "8.4p1")
@@ -209,8 +210,9 @@ class TestLookup:
 
     async def test_dual_product_only_lookup_merges_and_dedups(self, lookup):
         # No version → skip step 1; step 2 fires two concurrent queries.
-        crit = [_vuln("CVE-2021-1", score=9.8)]
-        recent = [_vuln("CVE-2021-1", score=9.8), _vuln("CVE-2021-2", score=8.0)]
+        crit = [_vuln("CVE-2021-1", score=9.8, desc="BespokeServer auth bypass")]
+        recent = [_vuln("CVE-2021-1", score=9.8, desc="BespokeServer auth bypass"),
+                  _vuln("CVE-2021-2", score=8.0, desc="BespokeServer path traversal")]
         with patch("modules.vulnscan.cve_lookup._nvd_query",
                    AsyncMock(side_effect=[crit, recent])):
             result = await lookup.lookup("BespokeServer")
@@ -228,15 +230,126 @@ class TestLookup:
     async def test_product_only_below_cvss_floor_returns_empty(self, lookup):
         # Step 2 uses a 7.0 floor; a 5.0 CVE is dropped.
         with patch("modules.vulnscan.cve_lookup._nvd_query",
-                   AsyncMock(side_effect=[[_vuln("CVE-2021-1", score=5.0)], []])):
+                   AsyncMock(side_effect=[[_vuln("CVE-2021-1", score=5.0, desc="BespokeServer flaw")], []])):
             assert await lookup.lookup("BespokeServer") == []
 
     async def test_service_name_used_when_product_absent(self, lookup):
         with patch("modules.vulnscan.cve_lookup._nvd_query",
-                   AsyncMock(side_effect=[[_vuln("CVE-2021-1", score=9.0)], []])):
+                   AsyncMock(side_effect=[[_vuln("CVE-2021-1", score=9.0, desc="BespokeServer flaw")], []])):
             result = await lookup.lookup("", "", service_name="BespokeServer")
         assert [c["id"] for c in result] == ["CVE-2021-1"]
 
     def test_sort_orders_by_cvss_descending(self):
         cves = [{"cvss_score": 3.0}, {"cvss_score": 9.0}, {"cvss_score": 5.0}]
         assert [c["cvss_score"] for c in CVELookup._sort(cves)] == [9.0, 5.0, 3.0]
+
+
+# ── CPE applicability filter (the fix for keyword false matches) ─────────────
+from modules.vulnscan.cve_lookup import _ver_key, cpe_applies  # noqa: E402
+
+
+def _cve_with_cpes(cve_id, matches):
+    """NVD item carrying a configurations/cpeMatch list, as NVD returns."""
+    return {"cve": {"id": cve_id,
+                    "configurations": [{"nodes": [{"cpeMatch": matches}]}]}}
+
+
+def _m(criteria, **bounds):
+    return {"criteria": criteria, "vulnerable": True, **bounds}
+
+
+class TestVerKey:
+    def test_patch_suffix_sorts_after_base(self):
+        assert _ver_key("9.6p1") > _ver_key("9.6")
+        assert _ver_key("9.6p1") < _ver_key("9.7")
+
+    def test_ignores_distro_suffix(self):
+        assert _ver_key("9.6p1 Ubuntu 3ubuntu13.19") == _ver_key("9.6p1")
+
+    def test_no_number_is_none(self):
+        assert _ver_key("") is None and _ver_key("latest") is None
+
+
+class TestCpeApplies:
+    # Real shape: CVE-2016-0746 affects nginx 0.6.18–1.8.0 and 1.9.0–<1.9.10.
+    NGINX_0746 = [
+        _m("cpe:2.3:a:f5:nginx:*:*:*:*:*:*:*:*", versionStartIncluding="0.6.18", versionEndIncluding="1.8.0"),
+        _m("cpe:2.3:a:f5:nginx:*:*:*:*:*:*:*:*", versionStartIncluding="1.9.0", versionEndExcluding="1.9.10"),
+    ]
+
+    def test_modern_nginx_is_not_in_old_affected_range(self):
+        applies, reason = cpe_applies(_cve_with_cpes("CVE-2016-0746", self.NGINX_0746)["cve"], "nginx", "1.24.0")
+        assert applies is False and reason == "version-not-in-affected-range"
+
+    def test_old_nginx_is_in_range(self):
+        applies, _ = cpe_applies(_cve_with_cpes("CVE-2016-0746", self.NGINX_0746)["cve"], "nginx", "1.7.0")
+        assert applies is True
+
+    def test_different_product_is_dropped(self):
+        # An Authelia CVE whose text mentions nginx, but whose CPE is authelia.
+        cpes = [_m("cpe:2.3:a:authelia:authelia:*:*:*:*:*:*:*:*", versionEndExcluding="4.29.0")]
+        applies, reason = cpe_applies(_cve_with_cpes("CVE-2021-32637", cpes)["cve"], "nginx", "1.24.0")
+        assert applies is False and reason == "different-product"
+
+    def test_pulpcore_cve_dropped_for_gunicorn(self):
+        cpes = [_m("cpe:2.3:a:redhat:pulpcore:*:*:*:*:*:*:*:*", versionEndExcluding="3.22.0")]
+        applies, reason = cpe_applies(_cve_with_cpes("CVE-2024-7923", cpes)["cve"], "Gunicorn", "")
+        assert applies is False and reason == "different-product"
+
+    def test_openssh_9_6p1_not_in_before_9_6(self):
+        cpes = [_m("cpe:2.3:a:openbsd:openssh:*:*:*:*:*:*:*:*", versionEndExcluding="9.6")]
+        applies, reason = cpe_applies(_cve_with_cpes("CVE-2023-51385", cpes)["cve"], "OpenSSH", "9.6p1 Ubuntu 3ubuntu13.19")
+        assert applies is False and reason == "version-not-in-affected-range"
+
+    def test_product_match_unknown_version_is_kept(self):
+        cpes = [_m("cpe:2.3:a:f5:nginx:*:*:*:*:*:*:*:*", versionEndExcluding="1.99")]
+        applies, reason = cpe_applies(_cve_with_cpes("CVE-X", cpes)["cve"], "nginx", "")
+        assert applies is True and reason == "product-match-version-unknown"
+
+    def test_no_cpe_and_no_description_match_is_dropped(self):
+        # No CPE and nothing naming the product: cannot confirm it applies.
+        applies, reason = cpe_applies({"id": "CVE-Y", "descriptions": []}, "nginx", "1.24.0")
+        assert applies is False and reason == "no-cpe-desc-mismatch"
+
+    def test_pinned_exact_version(self):
+        cpes = [_m("cpe:2.3:a:f5:nginx:1.24.0:*:*:*:*:*:*:*")]
+        assert cpe_applies(_cve_with_cpes("CVE-Z", cpes)["cve"], "nginx", "1.24.0")[0] is True
+        assert cpe_applies(_cve_with_cpes("CVE-Z", cpes)["cve"], "nginx", "1.25.0")[0] is False
+
+
+def test_parse_vulns_filters_by_cpe():
+    """A keyword-matched CVE for another product is dropped once product is known."""
+    authelia = {"cve": {"id": "CVE-2021-32637", "metrics": {
+        "cvssMetricV31": [{"cvssData": {"baseScore": 10.0, "baseSeverity": "CRITICAL"}}]},
+        "descriptions": [{"lang": "en", "value": "Authelia ... nginx ngx_http_auth_request_module"}],
+        "configurations": [{"nodes": [{"cpeMatch": [
+            {"criteria": "cpe:2.3:a:authelia:authelia:*:*:*:*:*:*:*:*", "vulnerable": True, "versionEndExcluding": "4.29.0"}]}]}]}}
+    assert _parse_vulns([authelia], product="nginx", version="1.24.0") == []
+    assert len(_parse_vulns([authelia])) == 1  # no product given → old behaviour, kept
+
+
+def _cve_no_cpe(cve_id, desc):
+    return {"id": cve_id, "descriptions": [{"lang": "en", "value": desc}]}
+
+
+class TestNoCpeFallback:
+    """Recent CVEs often lack CPE data; fall back to the description subject."""
+
+    def test_keeps_real_recent_openssh_cve(self):
+        cve = _cve_no_cpe("CVE-2026-60002", "ssh in OpenSSH before 10.4 can have a logic error")
+        assert cpe_applies(cve, "OpenSSH", "9.6p1")[0] is True
+
+    def test_keeps_real_recent_nginx_cve(self):
+        cve = _cve_no_cpe("CVE-2026-42055", "NGINX Plus and NGINX Open Source have a vulnerability")
+        assert cpe_applies(cve, "nginx", "1.24.0")[0] is True
+
+    @pytest.mark.parametrize("product,desc", [
+        ("OpenSSH", "Kopia is a cross-platform backup tool for Windows, macOS, and Linux"),
+        ("OpenSSH", "Apache MINA SSHD is a Java library for client-side and server-side SSH"),
+        ("nginx", "The Divi Form Builder plugin for WordPress is vulnerable to arbitrary file upload"),
+        ("nginx", "Laravel-Mediable before 7.0.0 contains a file handling vulnerability"),
+        ("Gunicorn", "Incorrect access control in the setUPnPCfg function of a router"),
+    ])
+    def test_drops_unrelated_recent_cves(self, product, desc):
+        applies, reason = cpe_applies(_cve_no_cpe("CVE-X", desc), product, "")
+        assert applies is False and reason == "no-cpe-desc-mismatch"
