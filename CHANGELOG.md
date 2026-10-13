@@ -19,6 +19,12 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   the subject of the description. On a real server scan this cut matches from 20
   (all false) to 9, surfacing the genuinely applicable CVEs. Version comparison
   understands patch suffixes (OpenSSH `9.6p1` ≥ `9.6`).
+- **Port-number guesses no longer drive CVE lookups.** When nmap cannot
+  fingerprint a service it names it after the port's usual service
+  (`method="table"`, e.g. 5000 → `upnp`). That name describes the port, not the
+  software listening, and pulled in CVEs for unrelated UPnP routers. The parser
+  now records `name_guessed`; `vuln scan` skips CVE lookup for guessed names and
+  labels them "(service guessed from port, not fingerprinted)".
 
 ### Added
 

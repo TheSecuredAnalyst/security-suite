@@ -168,6 +168,13 @@ def _parse_nmap_xml(xml_file: str, expected_ip: str) -> list[dict]:
                 protocol = port_elem.get("protocol", "tcp")
                 svc = port_elem.find("service")
 
+                # nmap reports how it decided the service: method="probed" is a
+                # real fingerprint match; method="table" is only a guess from the
+                # port number (nmap-services), e.g. 5000 -> "upnp". A guessed name
+                # must not drive CVE lookups — it describes the port, not the
+                # software actually listening.
+                method = svc.get("method", "") if svc is not None else ""
+                name_guessed = method != "probed"
                 service: dict = {
                     "target_ip": host_ip,
                     "port": port_id,
@@ -176,6 +183,7 @@ def _parse_nmap_xml(xml_file: str, expected_ip: str) -> list[dict]:
                     "product": svc.get("product", "") if svc is not None else "",
                     "version": svc.get("version", "") if svc is not None else "",
                     "extrainfo": svc.get("extrainfo", "") if svc is not None else "",
+                    "name_guessed": name_guessed,
                 }
                 if os_info:
                     service["os_detection"] = os_info
