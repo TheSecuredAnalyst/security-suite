@@ -38,7 +38,7 @@ class Settings(BaseSettings):
     # loopback or link-local addresses. Off by default so a hosted API cannot be
     # used as an SSRF proxy; turn on for internal engagements.
     allow_private_targets: bool = False
-    user_agent: str = "SecuritySuite/0.4.0 (https://github.com/security-suite)"
+    user_agent: str = "SecuritySuite/0.5.0 (https://github.com/security-suite)"
 
     # Rate limiting
     requests_per_second: float = 5.0

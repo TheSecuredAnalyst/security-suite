@@ -14,7 +14,7 @@ A comprehensive open-source security tools suite for OSINT reconnaissance, web s
  _\ \/ -_) __/   _\ \/ // / / __/ -_)
 /___/\__/\__/   /___/\_,_/_/\__/\__/
 
-       =[ SecSuite v0.4.0 ]=
+       =[ SecSuite v0.5.0 ]=
 + -- --=[ 11 OSINT modules | 6 Web scanners | 4 API security tools ]=--
 + -- --=[ AI-powered analysis with Ollama/Anthropic/OpenAI         ]=--
 + -- --=[ SIEM integration | Scheduled scans | REST API            ]=--

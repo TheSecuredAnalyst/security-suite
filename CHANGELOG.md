@@ -6,6 +6,28 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-10-13
+
+### Fixed
+
+- **CVE lookup now filters by affected product and version, not just keywords.**
+  NVD keyword search returns any CVE whose *text* mentions a product name, so a
+  scan of nginx or Gunicorn previously reported critical CVEs that were actually
+  about Authelia, zzcms, Pulpcore or NGINX Unit. `cve_lookup` now checks each
+  result against its own CPE configuration (the authoritative affected-product
+  and version-range data) and drops CVEs whose CPEs name a different product or
+  a version range the detected version is outside. When a CVE has no CPE data
+  yet (common for very recent CVEs), it falls back to confirming the product is
+  the subject of the description. On a real server scan this cut matches from 20
+  (all false) to 9, surfacing the genuinely applicable CVEs. Version comparison
+  understands patch suffixes (OpenSSH `9.6p1` ≥ `9.6`).
+- **Port-number guesses no longer drive CVE lookups.** When nmap cannot
+  fingerprint a service it names it after the port's usual service
+  (`method="table"`, e.g. 5000 → `upnp`). That name describes the port, not the
+  software listening, and pulled in CVEs for unrelated UPnP routers. The parser
+  now records `name_guessed`; `vuln scan` skips CVE lookup for guessed names and
+  labels them "(service guessed from port, not fingerprinted)".
+
 ### Added
 
 - **Native entity emission for scanners.** `ScanResult` now carries an optional
@@ -146,5 +168,9 @@ CI pipeline, supply-chain scanning, and a large jump in test coverage.
   compliance checks, phishing simulation, SIEM integration, REST API, and
   AI-powered analysis.
 
+[Unreleased]: https://github.com/TheSecuredAnalyst/security-suite/compare/v0.5.0...HEAD
+[0.5.0]: https://github.com/TheSecuredAnalyst/security-suite/compare/v0.4.0...v0.5.0
+[0.4.0]: https://github.com/TheSecuredAnalyst/security-suite/compare/v0.3.0...v0.4.0
+[0.3.0]: https://github.com/TheSecuredAnalyst/security-suite/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/TheSecuredAnalyst/security-suite/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/TheSecuredAnalyst/security-suite/releases/tag/v0.1.0

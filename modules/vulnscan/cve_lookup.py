@@ -130,15 +130,148 @@ async def _nvd_query(params: dict, headers: dict) -> list[dict]:
         return []
 
 
+def _ver_key(v: str) -> tuple[int, ...] | None:
+    """A comparable key from a version string, or None if it has no number.
+
+    "1.24.0" -> (1,24,0,0); "9.6p1" -> (9,6,0,1); "8.4p1 Ubuntu 3" -> (8,4,0,1).
+    Distro suffixes after the first space are ignored.
+    """
+    v = (v or "").strip().split()[0] if (v or "").strip() else ""
+    m = re.match(r"(\d+(?:\.\d+)*)(?:p(\d+))?", v)
+    if not m or not m.group(1):
+        return None
+    parts = [int(x) for x in m.group(1).split(".")][:3]
+    while len(parts) < 3:
+        parts.append(0)
+    parts.append(int(m.group(2)) if m.group(2) else 0)
+    return tuple(parts)
+
+
+def _cpe_product(criteria: str) -> tuple[str, str, str]:
+    """(vendor, product, version) from a CPE 2.3 string, lowercased."""
+    parts = criteria.split(":")
+    if len(parts) >= 6 and parts[0] == "cpe" and parts[1] == "2.3":
+        return parts[3], parts[4], parts[5]
+    return "", "", ""
+
+
+def _name_matches(detected: str, cpe_product: str) -> bool:
+    """Does the detected product name refer to the same thing as the CPE product?
+
+    CPE products use lowercase and underscores ("openssh", "apache_http_server").
+    Match on shared significant tokens so "OpenSSH" == "openssh" and
+    "nginx" == "nginx", but "gunicorn" never equals "pulpcore".
+    """
+    d = {t for t in re.split(r"[\s/_.-]+", detected.lower()) if len(t) >= 3}
+    c = {t for t in re.split(r"[\s/_.-]+", cpe_product.lower()) if len(t) >= 3}
+    return bool(d & c)
+
+
+def _version_in_match(ver: tuple[int, ...], m: dict) -> bool:
+    """Is ``ver`` inside one CPE match's version range (or its exact version)?"""
+    start_i, start_e = m.get("versionStartIncluding"), m.get("versionStartExcluding")
+    end_i, end_e = m.get("versionEndIncluding"), m.get("versionEndExcluding")
+    if not any((start_i, start_e, end_i, end_e)):
+        # No range: the version is pinned in the CPE criteria itself (or "*").
+        _, _, cver = _cpe_product(m.get("criteria", ""))
+        if cver in ("*", "-", ""):
+            return True  # all versions of the product are listed as vulnerable
+        k = _ver_key(cver)
+        return k == ver if k else True
+    if start_i and (k := _ver_key(start_i)) and ver < k:
+        return False
+    if start_e and (k := _ver_key(start_e)) and ver <= k:
+        return False
+    if end_i and (k := _ver_key(end_i)) and ver > k:
+        return False
+    if end_e and (k := _ver_key(end_e)) and ver >= k:
+        return False
+    return True
+
+
+def _iter_cpe_matches(cve_data: dict):
+    for conf in cve_data.get("configurations", []):
+        for node in conf.get("nodes", []):
+            for m in node.get("cpeMatch", []):
+                if m.get("vulnerable", True):
+                    yield m
+
+
+def _description_text(cve_data: dict) -> str:
+    for d in cve_data.get("descriptions", []):
+        if d.get("lang") == "en":
+            return d.get("value", "")
+    return ""
+
+
+def _desc_confirms_product(cve_data: dict, product: str) -> bool:
+    """Fallback when a CVE has no CPE data yet (common for recent CVEs).
+
+    Keep the CVE only if the product is plausibly its subject: a product token
+    appears in the opening of the description. This drops keyword matches whose
+    text is about something else ("The Divi Form Builder plugin...", "Kopia is a
+    backup tool...") while keeping real ones ("ssh in OpenSSH before 10.4...",
+    "NGINX Open Source has...").
+    """
+    terms = {t for t in re.split(r"[\s/_.-]+", product.lower()) if len(t) >= 4}
+    if not terms:
+        return True
+    opening = " ".join(_description_text(cve_data).lower().split()[:12])
+    return any(t in opening for t in terms)
+
+
+def cpe_applies(cve_data: dict, product: str, version: str) -> tuple[bool, str]:
+    """Whether a CVE actually applies to the detected product/version, per its CPEs.
+
+    NVD keyword search returns any CVE whose *text* mentions the product, so a
+    CVE about Authelia or Pulpcore comes back for nginx or Gunicorn. The CVE's
+    own CPE configuration is authoritative: it names the affected products and
+    version ranges. We keep a CVE only when a vulnerable CPE both names this
+    product and (if we can parse the version) covers this version.
+
+    Returns (applies, reason). When a CVE carries no CPE naming the product at
+    all, it is treated as a different-product match and dropped.
+    """
+    matches = list(_iter_cpe_matches(cve_data))
+    if not matches:
+        # No CPE to judge by (often a very recent CVE). Fall back to the
+        # description: keep only if the product is plausibly its subject.
+        if _desc_confirms_product(cve_data, product):
+            return True, "no-cpe-desc-confirms"
+        return False, "no-cpe-desc-mismatch"
+
+    ver = _ver_key(version)
+    named = False
+    for m in matches:
+        _, cpe_prod, _ = _cpe_product(m.get("criteria", ""))
+        if not _name_matches(product, cpe_prod):
+            continue
+        named = True
+        if ver is None:
+            return True, "product-match-version-unknown"
+        if _version_in_match(ver, m):
+            return True, "cpe-match"
+    if named:
+        return False, "version-not-in-affected-range"
+    return False, "different-product"
+
+
 def _parse_vulns(
     vulns: list[dict],
     min_cvss: float = _MIN_CVSS_WITH_VERSION,
     min_year: int = _MIN_CVE_YEAR,
     max_results: int = 5,
+    product: str = "",
+    version: str = "",
 ) -> list[dict]:
     """
     Parse raw NVD vulnerability list into CVE dicts.
-    Applies client-side CVSS and publication-year filters.
+    Applies client-side CVSS, publication-year and CPE-applicability filters.
+
+    The CPE filter is the important one: NVD keyword search matches on CVE text,
+    so without it a CVE about a different product (whose description merely
+    mentions this one) is reported as a critical finding. ``cpe_applies`` checks
+    each CVE's own affected-product list instead.
     """
     results = []
     for item in vulns:
@@ -156,6 +289,12 @@ def _parse_vulns(
         score, severity = _extract_cvss(cve_data.get("metrics", {}))
         if score < min_cvss:
             continue  # skip below CVSS threshold
+
+        if product:
+            applies, reason = cpe_applies(cve_data, product, version)
+            if not applies:
+                logger.debug(f"{cve_id}: dropped ({reason}) for {product} {version}")
+                continue
 
         desc = "No description available"
         for d in cve_data.get("descriptions", []):
@@ -240,6 +379,8 @@ class CVELookup:
                     min_cvss=_MIN_CVSS_WITH_VERSION,
                     min_year=_MIN_CVE_YEAR,
                     max_results=self.max_results,
+                    product=product,
+                    version=version,
                 )
                 if parsed:
                     logger.debug(f"NVD keyword hit [{query!r}]: {len(parsed)} CVEs")
@@ -258,6 +399,8 @@ class CVELookup:
                         min_cvss=_MIN_CVSS_WITH_VERSION,
                         min_year=_MIN_CVE_YEAR,
                         max_results=self.max_results,
+                        product=product,
+                        version=version,
                     )
                     if parsed2:
                         logger.debug(
@@ -305,6 +448,8 @@ class CVELookup:
                 min_cvss=_MIN_CVSS_PRODUCT_ONLY,
                 min_year=_MIN_CVE_YEAR,
                 max_results=self.max_results * 4,   # extra room before dedup
+                product=product or service_name,
+                version=version,
             )
             deduped = _dedup(parsed)
             top = self._sort(deduped)[: self.max_results]

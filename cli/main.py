@@ -85,7 +85,7 @@ def print_banner():
     # Module stats
     stats = Text()
     stats.append("       =[ ", style="white")
-    stats.append("SecSuite v0.4.0", style="bold cyan")
+    stats.append("SecSuite v0.5.0", style="bold cyan")
     stats.append(" - ", style="white")
     stats.append("by ", style="white")
     stats.append("TheSecuredAnalyst", style="bold red")
@@ -1734,9 +1734,15 @@ def vuln_scan(
         port = svc["port"]
         product = svc.get("product", "")
         version = svc.get("version", "")
-        service_name = svc.get("name", "")
+        # Only use a service name nmap actually fingerprinted. A port-table guess
+        # ("upnp" for 5000) describes the port, not the software, and drives false
+        # CVE matches, so it is not used for lookup.
+        service_name = "" if svc.get("name_guessed") else svc.get("name", "")
 
-        console.print(f"[cyan]{ip}:{port}[/cyan] — {product} {version}".strip())
+        shown = (f"{product} {version}".strip() or svc.get("name", "") or "unknown")
+        if svc.get("name_guessed") and not product:
+            shown += " [dim](service guessed from port, not fingerprinted)[/dim]"
+        console.print(f"[cyan]{ip}:{port}[/cyan] — {shown}")
 
         cves = run_async(cve_lookup.lookup(product, version, service_name))
         total_cves += len(cves)
