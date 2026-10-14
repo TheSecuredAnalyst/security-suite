@@ -9,6 +9,8 @@ from __future__ import annotations
 import bisect
 import math
 import re
+import shutil
+import subprocess  # nosec B404
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -64,7 +66,8 @@ RULES: list[SecretRule] = [
 # Values that are obviously not real credentials.
 _PLACEHOLDER = re.compile(
     r"(?i)example|sample|dummy|placeholder|changeme|change_me|your[_-]|xxxx|<[^>]*>|\$\{|\{\{|"
-    r"process\.env|import\.meta|env\(|getenv|os\.environ|redacted|\*\*\*|test|fake|lorem|"
+    r"process\.env|import\.meta|env\(|getenv|os\.environ|^ENV:|redacted|\*\*\*|test|fake|lorem|"
+    r"^\$(?:2[abxy]|argon2\w*|scrypt|pbkdf2[\w-]*)\$|"  # password hashes, not credentials
     r"^(.)\1+$|abcdef|123456"
 )
 
@@ -82,7 +85,7 @@ def redact(value: str) -> str:
 
 def scan_text(text: str, rel: str, rules: list[SecretRule] = RULES) -> list[CodeFinding]:
     out: list[CodeFinding] = []
-    seen: set[tuple[str, int]] = set()
+    seen_lines: set[int] = set()
     test = is_test_path(rel)
     starts: list[int] | None = None
     lines: list[str] | None = None
@@ -100,9 +103,11 @@ def scan_text(text: str, rel: str, rules: list[SecretRule] = RULES) -> list[Code
                 lines = text.split("\n")
             lineno = bisect.bisect_right(starts, m.start())
             line = lines[lineno - 1] if lines else ""
-            if len(line) > 2000 or (rule.id, lineno) in seen:
+            # One finding per line: the specific rules run first, so a key that is
+            # also a "generic secret" is reported once, under its real name.
+            if len(line) > 2000 or lineno in seen_lines:
                 continue
-            seen.add((rule.id, lineno))
+            seen_lines.add(lineno)
             shown = line.replace(value, redact(value)).strip()[:200]
             out.append(CodeFinding(
                 check="secrets", rule_id=f"secret.{rule.id}", title=rule.title,
@@ -117,10 +122,33 @@ def scan_text(text: str, rel: str, rules: list[SecretRule] = RULES) -> list[Code
     return out
 
 
+def git_ignored(base: Path, rels: list[str]) -> set[str]:
+    """Which of ``rels`` git ignores. Empty when ``base`` is not a repository."""
+    git = shutil.which("git")
+    if not git or not rels:
+        return set()
+    try:
+        proc = subprocess.run(  # nosec B603
+            [git, "-C", str(base), "check-ignore", "--stdin", "-z"],
+            input="\0".join(rels), capture_output=True, text=True, timeout=30, check=False)
+    except (OSError, subprocess.SubprocessError):
+        return set()
+    return {p for p in proc.stdout.split("\0") if p}
+
+
 def scan(root: Path, include_tests: bool = True) -> list[CodeFinding]:
     root = root.resolve()
     base = root if root.is_dir() else root.parent
     findings: list[CodeFinding] = []
     for path, text in iter_files(root, skip_tests=not include_tests):
         findings += scan_text(text, str(path.relative_to(base)))
+    # A secret in a git-ignored file (.env, storage/) is local configuration, not a
+    # leak. It is still reported, at info, so it can be checked for weak values.
+    ignored = git_ignored(base, sorted({f.file for f in findings}))
+    for f in findings:
+        if f.file in ignored:
+            f.severity = "info"
+            f.data["git_ignored"] = True
+            f.message = (f"{f.title} in a git-ignored file ({f.data['redacted']}): local "
+                         "configuration, not committed.")
     return findings

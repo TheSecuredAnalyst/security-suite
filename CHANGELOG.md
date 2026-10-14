@@ -13,7 +13,10 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   - **Leaked secrets**: cloud, GitHub, Slack, Stripe, AI-provider and SendGrid
     keys, private keys, JWTs, database URLs with passwords, and high-entropy
     hard-coded credentials. Values are redacted to their first four characters
-    and length; placeholders and environment lookups are ignored.
+    and length; placeholders, environment lookups and password hashes are
+    ignored, each line is reported once under its most specific rule, and
+    secrets in git-ignored files (`.env`, `storage/`) are reported at info as
+    local configuration rather than as leaks.
   - **Vulnerable dependencies**: `package-lock.json` (v1–v3), `composer.lock` and
     pinned `requirements*.txt` checked against OSV.dev in batches, with fixed
     versions and CVE aliases. Development-only packages are reported one level
@@ -24,8 +27,9 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
     checked for a scheme guard), `eval`/`new Function`, `window` message
     handlers that never check the sender, `postMessage` to `*`, `Math.random()`
     for tokens, wildcard CORS (escalated when credentials are allowed), and PHP
-    raw SQL with variables, unescaped Blade output, command execution and
-    `unserialize` of request data.
+    raw SQL with variables, unescaped Blade output (`{!! e(...) !!}` accepted),
+    command execution and `unserialize` of request data. Laravel compiled views
+    and framework caches are skipped.
 
   Findings carry a confidence level (low-confidence leads are hidden by
   default), tests, dev servers and build tooling are skipped unless

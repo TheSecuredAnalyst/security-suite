@@ -238,3 +238,34 @@ class TestScanner:
         (tmp_path / "tests").mkdir()
         (tmp_path / "tests" / "t.js").write_text("eval(x)\n")
         assert CodeScanner(tmp_path, offline=True, include_tests=True).run()[0].severity == "low"
+
+
+# ── noise reduction learned from real Laravel apps ─────────────────────────
+class TestRealWorldNoise:
+    def test_password_hashes_and_env_references_are_not_secrets(self):
+        bcrypt = "$2y$12$" + "abcdefghijklmnopqrstuv" + "0123456789ABCDEFGHIJKLMNOPQRSTU"
+        assert secrets.scan_text(f'"password": "{bcrypt}"', "users.json") == []
+        assert secrets.scan_text('password="ENV:CORE1_PASSWORD9"', "db.py") == []
+
+    def test_one_finding_per_line_specific_rule_wins(self):
+        key = fake("AIza", "SyB3x9Qk2Lm7Np4Rt8Vw1Yz5Ac6Df0GhJkP")
+        found = secrets.scan_text(f'API_KEY="{key}"', "config.js")
+        assert [f.rule_id for f in found] == ["secret.google-api-key"]
+
+    def test_git_ignored_secret_is_info(self, tmp_path):
+        import subprocess
+        subprocess.run(["git", "init", "-q", str(tmp_path)], check=True)
+        (tmp_path / ".gitignore").write_text(".env\n")
+        key = fake("AKIA", "Q7RT2MZP4K9WX3VB")
+        (tmp_path / ".env").write_text(f"AWS_KEY={key}\n")
+        (tmp_path / "app.js").write_text(f'const k = "{key}";\n')
+        by = {f.file: f for f in secrets.scan(tmp_path)}
+        assert by[".env"].severity == "info" and by[".env"].data["git_ignored"]
+        assert by["app.js"].severity == "high"
+
+    def test_escaped_blade_and_compiled_views(self, tmp_path):
+        assert rules("{!! nl2br(e($body)) !!}", "mail.blade.php", "php") == []
+        views = tmp_path / "storage" / "framework" / "views"
+        views.mkdir(parents=True)
+        (views / "abc.php").write_text("<?php echo $x; {!! $content !!}")
+        assert [p.name for p, _ in iter_files(tmp_path)] == []

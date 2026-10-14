@@ -249,7 +249,7 @@ RULES: list[Rule] = [
                  "data; a problem if responses depend on the visitor's cookies or tokens."),
     # PHP / Laravel
     Rule("php.blade-unescaped", "Unescaped Blade output {!! !!}", "medium", "CWE-79",
-         _r(r"\{!!\s*(?!\s*(?:csrf_field|method_field|\$slot\b|__\(|trans\(|json_encode|"
+         _r(r"\{!!\s*(?!\s*(?:csrf_field|method_field|\$slot\b|__\(|trans\(|json_encode|e\(|nl2br\(\s*e\(|"
             r"\$attributes|config\(|asset\(|route\(|url\(|vite|\$__))[^!]+!!\}"), langs="php"),
     Rule("php.raw-sql-interpolation", "SQL built from a PHP variable", "high", "CWE-89",
          _r(r"""(?:DB::(?:raw|select|statement|unprepared|insert|update|delete)|"""

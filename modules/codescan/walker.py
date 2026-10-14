@@ -24,6 +24,7 @@ TEXT_EXT = CODE_EXT | {".json", ".env", ".yml", ".yaml", ".toml", ".ini", ".cfg"
                        ".sh", ".txt", ".md", ".xml", ".properties"}
 
 MAX_BYTES = 1_000_000
+GENERATED_PARTS = re.compile(r"(^|/)storage/framework/|(^|/)bootstrap/cache/|(^|/)public/build/")
 _TEST_PART = re.compile(
     r"(^|/)(tests?|__tests__|e2e|spec|fixtures?|mocks?|benchmarks?|dev|tools|scripts|examples?)(/|$)")
 _TEST_NAME = re.compile(r"\.(test|spec)\.[a-z]+$|^test_.*\.py$|_test\.py$|(^|[-_.])mock[-_.]")
@@ -57,7 +58,10 @@ def iter_files(root: Path, exts: set[str] = TEXT_EXT,
         name = path.name
         if path.suffix.lower() not in exts and not name.startswith(".env"):
             continue
-        if skip_tests and is_test_path(str(path.relative_to(base))):
+        rel = str(path.relative_to(base)).replace(os.sep, "/")
+        if GENERATED_PARTS.search(rel):
+            continue  # framework caches and compiled views: generated from scanned source
+        if skip_tests and is_test_path(rel):
             continue
         if name.endswith((".min.js", ".min.css", ".map")) or name in {"package-lock.json",
                                                                     "composer.lock", "yarn.lock"}:
