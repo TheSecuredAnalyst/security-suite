@@ -86,6 +86,7 @@ source venv/bin/activate
 |--------|-------------|-------|
 | **OSINT** | DNS, WHOIS, subdomains, ports, tech detection, headers, emails | nmap, Shodan, VirusTotal |
 | **Web Scanner** | XSS, SQLi, directory bruteforce, SSL/TLS analysis, crawling | Nuclei |
+| **Code Scan** | Leaked secrets (redacted), vulnerable dependencies (npm, Composer, pip via OSV), risky JS/PHP patterns with escaping-aware HTML-sink analysis; SARIF output | OSV.dev |
 | **API Security** | OpenAPI parsing, auth bypass, JWT testing, BOLA/IDOR, fuzzing | REST API |
 | **AI Analysis** | Finding correlation, executive summaries, interactive LLM remediation | Ollama, Anthropic, OpenAI |
 | **Correlation** | Turns co-occurring findings into provenance-aware attack paths via community-contributable YAML rules | `rules/correlation/` |
@@ -259,6 +260,26 @@ secsuite scan dirs https://example.com
 secsuite scan ssl example.com
 secsuite scan nuclei https://example.com
 ```
+
+### Source Code Scanning
+
+Reads files only. Dependency names and versions (never code) go to
+[OSV.dev](https://osv.dev); `--offline` skips that. Tests, dev servers and build
+tooling are not shipped to users, so their findings are hidden unless you pass
+`--include-tests`; development-only dependencies are reported one level lower.
+
+```bash
+secsuite code scan ./my-app
+secsuite code scan ./monorepo/src --group 1                 # summary per app
+secsuite code scan . --checks secrets --offline             # secrets only, no network
+secsuite code scan . -o findings.sarif                      # for SecContext / GitHub code scanning
+secsuite code scan . --confidence low                       # include weaker leads
+```
+
+HTML-sink checks (`innerHTML`, `insertAdjacentHTML`, `dangerouslySetInnerHTML`, …)
+parse the value written and only report interpolated expressions that skip an
+escaping helper, so a codebase that escapes consistently stays quiet. Pattern
+findings are leads to confirm by reading the code, not verdicts.
 
 ### API Security Testing — What You Need to Know First
 
@@ -514,6 +535,7 @@ security-suite/
 │   ├── ai/               # AI analysis + remediation
 │   ├── siem/             # SIEM integration (4 backends)
 │   ├── vulnscan/         # Network vulnerability scanner
+│   ├── codescan/         # Source code: secrets, dependencies, risky patterns
 │   ├── threat_intel/     # IP threat intelligence
 │   ├── password/         # Password audit + generation
 │   ├── scheduler/        # Scheduled scans

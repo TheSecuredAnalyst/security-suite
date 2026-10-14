@@ -168,6 +168,8 @@ app.add_typer(password_app, name="password")
 app.add_typer(audit_app, name="audit")
 rules_app = typer.Typer(help="Correlation rule library (list / validate contributed rules)")
 app.add_typer(rules_app, name="rules")
+code_app = typer.Typer(help="Source-code checks: leaked secrets, vulnerable dependencies, risky code")
+app.add_typer(code_app, name="code")
 
 
 def run_async(coro):
@@ -2280,6 +2282,118 @@ def rules_validate(
     if failed:
         raise typer.Exit(1)
     console.print(f"[green]All valid: {ok} rule(s).[/green]")
+
+
+# ============== Code Commands ==============
+
+@code_app.command("scan")
+def code_scan(
+    path: str = typer.Argument(..., help="Folder or file to scan"),
+    checks: str = typer.Option("secrets,deps,sast", "--checks", "-c",
+                               help="Comma-separated: secrets, deps, sast"),
+    min_severity: str = typer.Option("low", "--min-severity", "-s",
+                                     help="critical | high | medium | low | info"),
+    include_tests: bool = typer.Option(False, "--include-tests",
+                                       help="Also report findings in test code"),
+    offline: bool = typer.Option(False, "--offline",
+                                 help="Skip the OSV dependency lookup (no network)"),
+    confidence: str = typer.Option("medium", "--confidence",
+                                   help="Lowest confidence to report: high | medium | low"),
+    group_depth: int = typer.Option(0, "--group", "-g",
+                                    help="Summarise per folder at this depth (1 = per app in a monorepo)"),
+    limit: int = typer.Option(40, "--limit", "-n", help="Findings to print (0 = all)"),
+    output: str | None = typer.Option(None, "--output", "-o",
+                                      help="Write all findings to a file (.json or .sarif)"),
+):
+    """Scan source code for leaked secrets, vulnerable dependencies and risky patterns.
+
+    Passive: reads files only. Dependency names and versions (not code) are sent to
+    api.osv.dev unless --offline is given. SARIF output can be ingested by SecContext.
+
+    Examples:
+
+      secsuite code scan ./my-app
+
+      secsuite code scan ./monorepo/src --group 1 -o findings.sarif
+
+      secsuite code scan . --checks secrets --offline
+    """
+    from collections import Counter
+    from pathlib import Path as _Path
+
+    from modules.codescan import CodeScanner
+    from modules.codescan.common import SEVERITIES
+    from modules.codescan.scanner import CHECKS, group_key
+
+    wanted = tuple(c.strip() for c in checks.split(",") if c.strip())
+    bad = [c for c in wanted if c not in CHECKS]
+    if bad or min_severity not in SEVERITIES:
+        console.print(f"[red]Unknown check or severity: {', '.join(bad) or min_severity}[/red]")
+        raise typer.Exit(2)
+    root = _Path(path)
+    if not root.exists():
+        console.print(f"[red]Not found: {path}[/red]")
+        raise typer.Exit(2)
+
+    scanner = CodeScanner(root, wanted, include_tests=include_tests, offline=offline)
+    with console.status("Scanning source…"):
+        findings = scanner.run()
+    cut = SEVERITIES.index(min_severity)
+    conf_levels = ["high", "medium", "low"]
+    if confidence not in conf_levels:
+        console.print(f"[red]Unknown confidence: {confidence}[/red]")
+        raise typer.Exit(2)
+    hidden = [f for f in findings if conf_levels.index(f.confidence) > conf_levels.index(confidence)]
+    findings = [f for f in findings if SEVERITIES.index(f.severity) <= cut and f not in hidden]
+
+    colors = {"critical": "red bold", "high": "red", "medium": "yellow", "low": "blue", "info": "dim"}
+    dep_stats = scanner.stats.get("deps") or {}
+    if dep_stats.get("packages"):
+        console.print(f"[dim]Dependencies: {dep_stats['packages']} locked packages in "
+                      f"{dep_stats['lockfiles']} lockfile(s), {dep_stats['unique']} unique[/dim]")
+    for err in scanner.errors:
+        console.print(f"[yellow]{err}[/yellow]")
+
+    if group_depth:
+        groups: dict[str, Counter] = {}
+        for f in findings:
+            groups.setdefault(group_key(f, group_depth), Counter())[f.severity] += 1
+        gt = Table(title="Findings by folder")
+        gt.add_column("Folder")
+        for sev in SEVERITIES[: cut + 1]:
+            gt.add_column(sev.capitalize(), justify="right")
+        order = sorted(groups.items(), key=lambda kv: [-kv[1][s] for s in SEVERITIES])
+        for name, c in order:
+            gt.add_row(name, *[str(c[s] or "") for s in SEVERITIES[: cut + 1]])
+        console.print(gt)
+
+    table = Table(title=f"{len(findings)} finding(s) in {root}")
+    table.add_column("Severity")
+    table.add_column("Check")
+    table.add_column("Where", overflow="fold")
+    table.add_column("Finding", overflow="fold")
+    for f in findings[: limit or None]:
+        c = colors[f.severity]
+        table.add_row(f"[{c}]{f.severity.upper()}[/{c}]", f.check, f.location,
+                      f"{f.title}\n[dim]{f.message}[/dim]")
+    console.print(table)
+    if limit and len(findings) > limit:
+        console.print(f"[dim]…{len(findings) - limit} more; use --limit 0 or --output to see all.[/dim]")
+
+    by = Counter(f.severity for f in findings)
+    console.print("Summary: " + ", ".join(f"{by[s]} {s}" for s in SEVERITIES if by[s]) if by
+                  else "[green]No findings.[/green]")
+    if hidden:
+        console.print(f"[dim]{len(hidden)} lower-confidence lead(s) hidden; --confidence low shows them.[/dim]")
+    console.print("[dim]Pattern findings are leads to confirm by reading the code, not verdicts.[/dim]")
+
+    if output:
+        out = _Path(output)
+        import json as _json
+        text = (_json.dumps(scanner.to_sarif(findings), indent=2) if out.suffix == ".sarif"
+                else scanner.to_json(findings))
+        out.write_text(text)
+        console.print(f"[green]Wrote {len(findings)} finding(s) to {out}[/green]")
 
 
 if __name__ == "__main__":

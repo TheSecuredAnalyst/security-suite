@@ -6,6 +6,38 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Added
+
+- **`secsuite code scan`: source-code security checks.** A new `codescan` module
+  reads a source tree and reports:
+  - **Leaked secrets**: cloud, GitHub, Slack, Stripe, AI-provider and SendGrid
+    keys, private keys, JWTs, database URLs with passwords, and high-entropy
+    hard-coded credentials. Values are redacted to their first four characters
+    and length; placeholders, environment lookups and password hashes are
+    ignored, each line is reported once under its most specific rule, and
+    secrets in git-ignored files (`.env`, `storage/`) are reported at info as
+    local configuration rather than as leaks.
+  - **Vulnerable dependencies**: `package-lock.json` (v1–v3), `composer.lock` and
+    pinned `requirements*.txt` checked against OSV.dev in batches, with fixed
+    versions and CVE aliases. Development-only packages are reported one level
+    lower because they are not shipped to users.
+  - **Risky code patterns**: HTML sinks with escaping-aware analysis (only
+    interpolations that bypass an escaping helper are reported, nested
+    `map(...).join('')` templates are followed, and `href`/`src` values are
+    checked for a scheme guard), `eval`/`new Function`, `window` message
+    handlers that never check the sender, `postMessage` to `*`, `Math.random()`
+    for tokens, wildcard CORS (escalated when credentials are allowed), and PHP
+    raw SQL with variables, unescaped Blade output (`{!! e(...) !!}` accepted),
+    command execution and `unserialize` of request data. Laravel compiled views
+    and framework caches are skipped.
+
+  Findings carry a confidence level (low-confidence leads are hidden by
+  default), tests, dev servers and build tooling are skipped unless
+  `--include-tests` is given, and results export to JSON or SARIF 2.1.0, which
+  SecContext and GitHub code scanning ingest. On a 50-app, 14k-file JavaScript
+  monorepo it scans in under a minute and reduced 443 raw HTML-sink matches to
+  47 reviewable leads.
+
 ## [0.5.0] - 2026-10-13
 
 ### Fixed
